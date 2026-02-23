@@ -9,6 +9,7 @@ local Utils = require(ReplicatedStorage.Shared.Utils)
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local BaseService = require(ServerScriptService.Server.Services.BaseService)
 local EarningsService = require(ServerScriptService.Server.Services.EarningsService)
+local IndexService = require(ServerScriptService.Server.Services.IndexService)
 local Remotes = require(ServerScriptService.Server.Remotes)
 
 local FoodService = {}
@@ -98,6 +99,9 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 
 		local current, max = BaseService.getCapacity(player)
 		Remotes.CapacityUpdated:FireClient(player, { current = current, max = max })
+
+		-- Register discovery in the codex (Phase 7)
+		IndexService.registerDiscovery(player, brainrotInstance.name, brainrotInstance.baseMutation)
 	else
 		-- Brainrot ran away
 		Remotes.BrainrotRanAway:FireClient(player, {

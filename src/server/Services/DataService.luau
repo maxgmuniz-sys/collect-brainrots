@@ -71,6 +71,7 @@ function DataService.onPlayerAdded(player: Player)
 			max = profile.Data.baseCapacity,
 		},
 		brainrots = profile.Data.ownedBrainrots,
+		unlockedFences = profile.Data.unlockedFences,
 	})
 end
 
@@ -122,6 +123,10 @@ function DataService.subtractMoney(player: Player, amount: number): boolean
 	data.money -= amount
 	Remotes.MoneyUpdated:FireClient(player, { money = data.money })
 	return true
+end
+
+function DataService.getSessionStartTime(player: Player): number?
+	return sessionStartTimes[player]
 end
 
 return DataService

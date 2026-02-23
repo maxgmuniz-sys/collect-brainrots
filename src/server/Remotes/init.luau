@@ -22,6 +22,14 @@ local REMOTE_NAMES = {
 	-- Phase 6 remotes
 	"WeatherChanged",
 	"BrainrotMutated",
+
+	-- Phase 7 remotes
+	"RequestIndex",
+	"IndexUpdated",
+	"GiftBrainrot",
+	"GiftReceived",
+	"RequestLeaderboard",
+	"LeaderboardData",
 }
 
 local Remotes = {}

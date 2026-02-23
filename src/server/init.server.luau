@@ -16,6 +16,9 @@ BaseService.init()
 local EarningsService = require(script.Services.EarningsService)
 EarningsService.init()
 
+local IndexService = require(script.Services.IndexService)
+IndexService.init()
+
 local FoodService = require(script.Services.FoodService)
 FoodService.init()
 
@@ -24,6 +27,12 @@ SellService.init()
 
 local WeatherService = require(script.Services.WeatherService)
 WeatherService.init()
+
+local GiftService = require(script.Services.GiftService)
+GiftService.init()
+
+local LeaderboardService = require(script.Services.LeaderboardService)
+LeaderboardService.init()
 
 -- Connect player lifecycle events
 Players.PlayerAdded:Connect(function(player)

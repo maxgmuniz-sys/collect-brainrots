@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
 local Utils = require(ReplicatedStorage.Shared.Utils)
@@ -34,6 +35,44 @@ local fenceParts = {}
 local plotPosition = nil
 local capacityLabel = nil
 local upgradeButton = nil
+
+-- Phase 7: Fence cosmetics
+local currentBestFence = nil
+local playerSelectionFrame = nil
+local activeGiftBrainrotId = nil
+
+local FENCE_COSMETICS = {
+	["Default Fence"] = {
+		material = Enum.Material.WoodPlanks,
+		color = Color3.fromRGB(139, 90, 43),
+		transparency = 0,
+	},
+	["Gold Fence"] = {
+		material = Enum.Material.SmoothPlastic,
+		color = Color3.fromRGB(255, 215, 0),
+		transparency = 0,
+	},
+	["Diamond Fence"] = {
+		material = Enum.Material.Glass,
+		color = Color3.fromRGB(185, 242, 255),
+		transparency = 0.3,
+	},
+	["Rainbow Fence"] = {
+		material = Enum.Material.Neon,
+		color = nil,
+		transparency = 0,
+	},
+}
+
+local FENCE_PRIORITY = {
+	["Default Fence"] = 1,
+	["Gold Fence"] = 2,
+	["Diamond Fence"] = 3,
+	["Rainbow Fence"] = 4,
+}
+
+-- Set in Init(), used by spawnBrainrotVisual for gift buttons
+local giftBrainrotRemote = nil
 
 local WEATHER_MUTATION_EFFECTS = {
 	Soaked = {
@@ -216,6 +255,142 @@ local function removeBrainrotVisual(brainrotId)
 	end
 end
 
+local function createPlayerSelectionFrame()
+	local frame = Instance.new("Frame")
+	frame.Name = "PlayerSelectionFrame"
+	frame.Size = UDim2.new(0, 250, 0, 300)
+	frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	frame.BackgroundTransparency = 0.05
+	frame.ZIndex = 15
+	frame.Visible = false
+	frame.Parent = player.PlayerGui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = frame
+
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(1, -20, 0, 30)
+	title.Position = UDim2.new(0, 10, 0, 5)
+	title.Text = "Gift to:"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamBold
+	title.BackgroundTransparency = 1
+	title.ZIndex = 15
+	title.Parent = frame
+
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Name = "CloseButton"
+	closeBtn.Size = UDim2.new(0, 25, 0, 25)
+	closeBtn.Position = UDim2.new(1, -8, 0, 5)
+	closeBtn.AnchorPoint = Vector2.new(1, 0)
+	closeBtn.Text = "X"
+	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.ZIndex = 16
+	closeBtn.Parent = frame
+
+	local closeBtnCorner = Instance.new("UICorner")
+	closeBtnCorner.CornerRadius = UDim.new(0, 4)
+	closeBtnCorner.Parent = closeBtn
+
+	closeBtn.Activated:Connect(function()
+		frame.Visible = false
+	end)
+
+	local list = Instance.new("ScrollingFrame")
+	list.Name = "List"
+	list.Size = UDim2.new(1, -20, 1, -45)
+	list.Position = UDim2.new(0, 10, 0, 40)
+	list.BackgroundTransparency = 1
+	list.ScrollBarThickness = 4
+	list.ZIndex = 15
+	list.Parent = frame
+
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.Padding = UDim.new(0, 4)
+	listLayout.Parent = list
+
+	return { Frame = frame, List = list }
+end
+
+local function showPlayerSelectionUI(brainrotId: string, GiftBrainrot)
+	activeGiftBrainrotId = brainrotId
+
+	if not playerSelectionFrame then
+		playerSelectionFrame = createPlayerSelectionFrame()
+	end
+
+	-- Clear existing entries
+	for _, child in playerSelectionFrame.List:GetChildren() do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	-- Populate with online players (excluding self)
+	for _, otherPlayer in Players:GetPlayers() do
+		if otherPlayer ~= player then
+			local entry = Instance.new("TextButton")
+			entry.Name = "Player_" .. otherPlayer.UserId
+			entry.Size = UDim2.new(1, 0, 0, 35)
+			entry.Text = otherPlayer.Name
+			entry.TextColor3 = Color3.fromRGB(255, 255, 255)
+			entry.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			entry.TextScaled = true
+			entry.Font = Enum.Font.Gotham
+			entry.ZIndex = 15
+			entry.Parent = playerSelectionFrame.List
+
+			local entryCorner = Instance.new("UICorner")
+			entryCorner.CornerRadius = UDim.new(0, 6)
+			entryCorner.Parent = entry
+
+			entry.Activated:Connect(function()
+				GiftBrainrot:FireServer({
+					brainrotId = activeGiftBrainrotId,
+					targetPlayerId = otherPlayer.UserId,
+				})
+				playerSelectionFrame.Frame.Visible = false
+			end)
+		end
+	end
+
+	playerSelectionFrame.Frame.Visible = true
+end
+
+local function addGiftButton(brainrotPart, brainrotId: string, GiftBrainrot)
+	local billboard = brainrotPart:FindFirstChildOfClass("BillboardGui")
+	if not billboard then
+		return
+	end
+
+	local giftButton = Instance.new("TextButton")
+	giftButton.Name = "GiftButton"
+	giftButton.Size = UDim2.new(0, 50, 0, 20)
+	giftButton.Position = UDim2.new(1, -30, 1, -25)
+	giftButton.Text = "Gift"
+	giftButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	giftButton.BackgroundColor3 = Color3.fromRGB(80, 160, 80)
+	giftButton.TextScaled = true
+	giftButton.Font = Enum.Font.GothamBold
+	giftButton.ZIndex = 5
+	giftButton.Parent = billboard
+
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 4)
+	btnCorner.Parent = giftButton
+
+	giftButton.Activated:Connect(function()
+		showPlayerSelectionUI(brainrotId, GiftBrainrot)
+	end)
+end
+
 local function spawnBrainrotVisual(brainrot)
 	if not plotPosition then
 		return
@@ -386,6 +561,11 @@ local function spawnBrainrotVisual(brainrot)
 		addWeatherMutationEffect(part, brainrot.weatherMutation)
 		updateBillboardWithWeatherMutation(brainrot.id, brainrot.weatherMutation)
 	end
+
+	-- Add gift button (Phase 7)
+	if giftBrainrotRemote then
+		addGiftButton(part, brainrot.id, giftBrainrotRemote)
+	end
 end
 
 local function createFence(center: Vector3)
@@ -470,6 +650,100 @@ local function updateUpgradeButton(maxCapacity: number)
 	end
 end
 
+local function getBestFenceFromList(fences: { string }): string?
+	local bestPriority = 0
+	local bestFence = nil
+	for _, fence in fences do
+		local priority = FENCE_PRIORITY[fence] or 0
+		if priority > bestPriority then
+			bestPriority = priority
+			bestFence = fence
+		end
+	end
+	return bestFence
+end
+
+local function startRainbowFenceCycle()
+	local rainbowColors = Mutations.RAINBOW_COLORS
+	local colorIndex = 1
+
+	task.spawn(function()
+		while currentBestFence == "Rainbow Fence" do
+			local targetColor = rainbowColors[colorIndex]
+			for _, fencePart in fenceParts do
+				if fencePart and fencePart.Parent then
+					local tween = TweenService:Create(
+						fencePart,
+						TweenInfo.new(0.5, Enum.EasingStyle.Linear),
+						{ Color = targetColor }
+					)
+					tween:Play()
+				end
+			end
+			colorIndex = (colorIndex % #rainbowColors) + 1
+			task.wait(0.5)
+		end
+	end)
+end
+
+local function applyFenceCosmetic(fenceName: string)
+	local cosmetic = FENCE_COSMETICS[fenceName]
+	if not cosmetic then
+		return
+	end
+
+	currentBestFence = fenceName
+
+	for _, fencePart in fenceParts do
+		if fencePart and fencePart.Parent then
+			fencePart.Material = cosmetic.material
+			fencePart.Transparency = cosmetic.transparency
+
+			if cosmetic.color then
+				fencePart.Color = cosmetic.color
+			end
+		end
+	end
+
+	if fenceName == "Rainbow Fence" then
+		startRainbowFenceCycle()
+	end
+end
+
+local function showGiftNotification(fromPlayer: string, brainrotName: string, rarity: string, mutation: string?)
+	local mutationText = mutation and (mutation .. " ") or ""
+	local message = fromPlayer .. " gifted you a " .. mutationText .. brainrotName .. "!"
+
+	local notification = Instance.new("TextLabel")
+	notification.Name = "GiftNotification"
+	notification.Size = UDim2.new(0.4, 0, 0, 50)
+	notification.Position = UDim2.new(0.3, 0, 0.15, 0)
+	notification.BackgroundColor3 = Color3.fromRGB(80, 160, 80)
+	notification.BackgroundTransparency = 0.2
+	notification.TextColor3 = Color3.fromRGB(255, 255, 255)
+	notification.TextScaled = true
+	notification.Font = Enum.Font.GothamBold
+	notification.Text = message
+	notification.ZIndex = 20
+	notification.Parent = player.PlayerGui
+
+	local notifCorner = Instance.new("UICorner")
+	notifCorner.CornerRadius = UDim.new(0, 10)
+	notifCorner.Parent = notification
+
+	task.delay(4, function()
+		local fadeOut = TweenService:Create(
+			notification,
+			TweenInfo.new(1, Enum.EasingStyle.Linear),
+			{ BackgroundTransparency = 1, TextTransparency = 1 }
+		)
+		fadeOut:Play()
+		fadeOut.Completed:Connect(function()
+			notification:Destroy()
+		end)
+	end)
+end
+
 function BaseUI.Init()
 	local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 	local BrainrotSpawned = remotesFolder:WaitForChild("BrainrotSpawned")
@@ -478,6 +752,14 @@ function BaseUI.Init()
 	local InitialData = remotesFolder:WaitForChild("InitialData")
 	local SellConfirmed = remotesFolder:WaitForChild("SellConfirmed")
 	local BrainrotMutated = remotesFolder:WaitForChild("BrainrotMutated")
+
+	-- Phase 7 remotes
+	local GiftBrainrot = remotesFolder:WaitForChild("GiftBrainrot")
+	local GiftReceived = remotesFolder:WaitForChild("GiftReceived")
+	local IndexUpdated = remotesFolder:WaitForChild("IndexUpdated")
+
+	-- Store remote reference for spawnBrainrotVisual gift buttons
+	giftBrainrotRemote = GiftBrainrot
 
 	-- Build capacity UI
 	local screenGui = Instance.new("ScreenGui")
@@ -529,6 +811,14 @@ function BaseUI.Init()
 		for _, brainrot in data.brainrots do
 			spawnBrainrotVisual(brainrot)
 		end
+
+		-- Apply best fence cosmetic (Phase 7)
+		if data.unlockedFences and #data.unlockedFences > 0 then
+			local bestFence = getBestFenceFromList(data.unlockedFences)
+			if bestFence then
+				applyFenceCosmetic(bestFence)
+			end
+		end
 	end)
 
 	BrainrotSpawned.OnClientEvent:Connect(function(data)
@@ -555,6 +845,18 @@ function BaseUI.Init()
 		end
 		addWeatherMutationEffect(part, data.weatherMutation)
 		updateBillboardWithWeatherMutation(data.brainrotId, data.weatherMutation)
+	end)
+
+	-- Phase 7: Gift received notification
+	GiftReceived.OnClientEvent:Connect(function(data)
+		showGiftNotification(data.fromPlayerName, data.brainrotName, data.brainrotRarity, data.baseMutation)
+	end)
+
+	-- Phase 7: Fence reward from index completion
+	IndexUpdated.OnClientEvent:Connect(function(data)
+		if data.fenceReward then
+			applyFenceCosmetic(data.fenceReward)
+		end
 	end)
 end
 
