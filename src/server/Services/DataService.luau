@@ -34,7 +34,7 @@ function DataService.init()
 end
 
 function DataService.onPlayerAdded(player: Player)
-	local profile = profileStore:LoadProfileAsync("Player_" .. player.UserId)
+	local profile = profileStore:StartSessionAsync("Player_" .. player.UserId)
 
 	if not profile then
 		player:Kick("Failed to load your data. Please rejoin.")
@@ -42,7 +42,7 @@ function DataService.onPlayerAdded(player: Player)
 	end
 
 	if not player.Parent then
-		profile:Release()
+		profile:EndSession()
 		return
 	end
 
@@ -85,7 +85,7 @@ function DataService.onPlayerRemoving(player: Player)
 		profile.Data.totalTimePlayed += elapsed
 	end
 
-	profile:Release()
+	profile:EndSession()
 	activeProfiles[player] = nil
 	sessionStartTimes[player] = nil
 end
