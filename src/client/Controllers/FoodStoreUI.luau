@@ -207,7 +207,16 @@ function FoodStoreUI.Init()
 			end
 		end
 
-		baseFullLabel.Visible = isBaseFull
+		if isBaseFull then
+			baseFullLabel.Visible = true
+			baseFullLabel.TextTransparency = 0
+			baseFullLabel.BackgroundTransparency = 0.3
+			task.delay(3, function()
+				baseFullLabel.Visible = false
+			end)
+		else
+			baseFullLabel.Visible = false
+		end
 	end
 
 	-- Connect remotes
