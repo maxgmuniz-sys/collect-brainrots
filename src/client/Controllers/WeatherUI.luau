@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local SoundService = game:GetService("SoundService")
+local ContentProvider = game:GetService("ContentProvider")
 
 local Weather = require(ReplicatedStorage.Shared.Config.Weather)
 
@@ -175,7 +176,7 @@ local function applyRainEffects()
 	})
 	splash.Parent = splashPart
 
-	playWeatherSound(184352854, 0.6, 1.0, true)
+	playWeatherSound(9112854440, 0.6, 1.0, true)
 end
 
 -- ============================================================
@@ -215,7 +216,7 @@ local function applySnowEffects()
 	snow.LightEmission = 0.3
 	snow.Parent = snowPart
 
-	playWeatherSound(184352854, 0.25, 1.0, true)
+	playWeatherSound(9114057104, 0.25, 1.0, true)
 end
 
 -- ============================================================
@@ -310,6 +311,16 @@ local function applyStormEffects()
 	Lighting.FogEnd = 120
 	Lighting.FogColor = Color3.fromRGB(30, 30, 50)
 
+	-- Persistent thunder sound — reused on every strike for instant playback
+	local thunderSound = Instance.new("Sound")
+	thunderSound.SoundId = "rbxassetid://9120019553"
+	thunderSound.Volume = 0.7
+	thunderSound.Looped = false
+	thunderSound.Name = "WeatherEffect"
+	thunderSound.Parent = SoundService
+	ContentProvider:PreloadAsync({ thunderSound })
+	table.insert(activeEffects, thunderSound)
+
 	-- Torrential angled rain
 	local stormPart = makeEmitterPart(Vector3.new(200, 1, 200), 70)
 	stormPart.CFrame = stormPart.CFrame * CFrame.Angles(0, 0, math.rad(25))
@@ -358,6 +369,15 @@ local function applyStormEffects()
 				break
 			end
 
+			-- Play thunder 1s before bolt so sound lands on impact
+			thunderSound.PlaybackSpeed = 0.85 + math.random() * 0.3
+			thunderSound.TimePosition = 0
+			thunderSound:Play()
+			task.wait(1)
+			if currentWeather ~= "Storm" then
+				break
+			end
+
 			spawnLightningBolt()
 
 			-- Reduced camera shake (6 iterations instead of 12)
@@ -373,8 +393,6 @@ local function applyStormEffects()
 			end
 		end
 	end)
-
-	playWeatherSound(4305545740, 0.7, 1.0, true)
 end
 
 -- ============================================================
@@ -439,6 +457,18 @@ local function spawnMeteor()
 		explosion.DestroyJointRadiusPercent = 0
 		explosion.Parent = workspace
 
+		-- Impact sound (one-shot per meteor)
+		local impactSound = Instance.new("Sound")
+		impactSound.SoundId = "rbxassetid://9125402528"
+		impactSound.Volume = 0.4
+		impactSound.PlaybackSpeed = 0.8 + math.random() * 0.4
+		impactSound.Looped = false
+		impactSound.Parent = SoundService
+		impactSound:Play()
+		impactSound.Ended:Connect(function()
+			impactSound:Destroy()
+		end)
+
 		-- Small camera shake on impact (4 iterations)
 		local cam = workspace.CurrentCamera
 		if cam and currentWeather == "Meteor Shower" then
@@ -467,6 +497,12 @@ local function applyMeteorShowerEffects()
 	Lighting.Brightness = 2.0
 	Lighting.FogEnd = 500
 	Lighting.FogColor = Color3.fromRGB(160, 100, 50)
+
+	-- Preload meteor impact sound so it plays instantly on hit
+	local preload = Instance.new("Sound")
+	preload.SoundId = "rbxassetid://9125402528"
+	ContentProvider:PreloadAsync({ preload })
+	preload:Destroy()
 
 	local colorCorrection = Instance.new("ColorCorrectionEffect")
 	colorCorrection.Name = "WeatherEffect"
@@ -534,8 +570,6 @@ local function applyMeteorShowerEffects()
 			spawnMeteor()
 		end
 	end)
-
-	playWeatherSound(3636730677, 0.5, 1.0, true)
 end
 
 -- ============================================================
@@ -621,7 +655,7 @@ local function applySolarFlareEffects()
 		end
 	end)
 
-	playWeatherSound(184352854, 0.35, 1.5, true)
+	playWeatherSound(9114057104, 0.3, 1.4, true)
 end
 
 -- ============================================================
@@ -693,7 +727,7 @@ local function applyNuclearEffects()
 	blur.Parent = Lighting
 	table.insert(activeEffects, blur)
 
-	playWeatherSound(6456981311, 0.6, 1.0, true)
+	playWeatherSound(9113073742, 0.6, 1.0, true)
 end
 
 -- ============================================================
@@ -838,7 +872,7 @@ local function applyBlackHoleEffects()
 		end
 	end)
 
-	playWeatherSound(184352854, 0.7, 0.3, true)
+	playWeatherSound(9125351901, 0.7, 0.3, true)
 end
 
 local WEATHER_EFFECT_FUNCTIONS = {
