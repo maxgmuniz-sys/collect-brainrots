@@ -35,7 +35,172 @@ local plotPosition = nil
 local capacityLabel = nil
 local upgradeButton = nil
 
+local WEATHER_MUTATION_EFFECTS = {
+	Soaked = {
+		color = ColorSequence.new(Color3.fromRGB(100, 150, 255)),
+		rate = 20,
+		lifetime = NumberRange.new(0.5, 1.5),
+		speed = NumberRange.new(1, 3),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.2),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		direction = Enum.NormalId.Top,
+		lightEmission = 0.2,
+	},
+	Frozen = {
+		color = ColorSequence.new(Color3.fromRGB(200, 230, 255)),
+		rate = 15,
+		lifetime = NumberRange.new(1, 2),
+		speed = NumberRange.new(0.5, 2),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.4),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		direction = Enum.NormalId.Top,
+		lightEmission = 0.6,
+	},
+	Shocked = {
+		color = ColorSequence.new(Color3.fromRGB(255, 255, 100)),
+		rate = 25,
+		lifetime = NumberRange.new(0.2, 0.5),
+		speed = NumberRange.new(5, 10),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.3),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		direction = Enum.NormalId.Top,
+		lightEmission = 1.0,
+	},
+	Starstrucked = {
+		color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 150)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 200, 50)),
+		}),
+		rate = 12,
+		lifetime = NumberRange.new(1, 3),
+		speed = NumberRange.new(1, 4),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.5),
+			NumberSequenceKeypoint.new(0.5, 0.3),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		direction = Enum.NormalId.Top,
+		lightEmission = 1.0,
+	},
+	Burnt = {
+		color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 20)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 50, 0)),
+		}),
+		rate = 30,
+		lifetime = NumberRange.new(0.3, 1),
+		speed = NumberRange.new(3, 8),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.4),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		direction = Enum.NormalId.Top,
+		lightEmission = 0.8,
+	},
+	Radiated = {
+		color = ColorSequence.new(Color3.fromRGB(100, 255, 50)),
+		rate = 18,
+		lifetime = NumberRange.new(1, 2.5),
+		speed = NumberRange.new(1, 3),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.3),
+			NumberSequenceKeypoint.new(1, 0.1),
+		}),
+		direction = Enum.NormalId.Top,
+		lightEmission = 0.7,
+	},
+	Gravitated = {
+		color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 50, 255)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 0, 200)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 0, 80)),
+		}),
+		rate = 25,
+		lifetime = NumberRange.new(0.5, 1.5),
+		speed = NumberRange.new(5, 15),
+		size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.6),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		direction = Enum.NormalId.Bottom,
+		lightEmission = 0.9,
+	},
+}
+
+local WEATHER_MUTATION_COLORS = {
+	Soaked = Color3.fromRGB(100, 150, 255),
+	Frozen = Color3.fromRGB(200, 230, 255),
+	Shocked = Color3.fromRGB(255, 255, 100),
+	Starstrucked = Color3.fromRGB(255, 200, 50),
+	Burnt = Color3.fromRGB(255, 100, 20),
+	Radiated = Color3.fromRGB(100, 255, 50),
+	Gravitated = Color3.fromRGB(180, 50, 255),
+}
+
 local BaseUI = {}
+
+local function addWeatherMutationEffect(part, mutation: string)
+	local existingEmitter = part:FindFirstChild("WeatherMutationEffect")
+	if existingEmitter then
+		return
+	end
+
+	local config = WEATHER_MUTATION_EFFECTS[mutation]
+	if not config then
+		return
+	end
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "WeatherMutationEffect"
+	emitter.Color = config.color
+	emitter.Rate = config.rate
+	emitter.Lifetime = config.lifetime
+	emitter.Speed = config.speed
+	emitter.Size = config.size
+	emitter.EmissionDirection = config.direction
+	emitter.LightEmission = config.lightEmission
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Parent = part
+end
+
+local function updateBillboardWithWeatherMutation(brainrotId: string, weatherMutation: string)
+	local part = brainrotParts[brainrotId]
+	if not part then
+		return
+	end
+
+	local billboard = part:FindFirstChildOfClass("BillboardGui")
+	if not billboard then
+		return
+	end
+
+	local weatherLabel = billboard:FindFirstChild("WeatherMutationLabel")
+	if not weatherLabel then
+		weatherLabel = Instance.new("TextLabel")
+		weatherLabel.Name = "WeatherMutationLabel"
+		weatherLabel.Size = UDim2.new(1, -20, 0, 16)
+		weatherLabel.Position = UDim2.new(0, 10, 1, -18)
+		weatherLabel.BackgroundTransparency = 1
+		weatherLabel.TextScaled = true
+		weatherLabel.Font = Enum.Font.GothamBold
+		weatherLabel.Parent = billboard
+
+		billboard.Size = billboard.Size + UDim2.new(0, 0, 0, 20)
+	end
+
+	weatherLabel.Text = weatherMutation
+	weatherLabel.TextColor3 = WEATHER_MUTATION_COLORS[weatherMutation] or Color3.fromRGB(255, 255, 255)
+end
 
 local function removeBrainrotVisual(brainrotId)
 	local connection = brainrotConnections[brainrotId]
@@ -76,7 +241,7 @@ local function spawnBrainrotVisual(brainrot)
 	end
 
 	-- Y offset adjusts for scaled Part so it sits on the surface
-	local yOffset = (scaledSize / 2) + 0.1
+	local yOffset = scaledSize / 2
 	local offsetX = math.random(-5, 5)
 	local offsetZ = math.random(-5, 5)
 	part.Position = Vector3.new(
@@ -215,6 +380,12 @@ local function spawnBrainrotVisual(brainrot)
 	part.Parent = workspace
 
 	brainrotParts[brainrot.id] = part
+
+	-- Restore weather mutation visuals on load
+	if brainrot.weatherMutation then
+		addWeatherMutationEffect(part, brainrot.weatherMutation)
+		updateBillboardWithWeatherMutation(brainrot.id, brainrot.weatherMutation)
+	end
 end
 
 local function createFence(center: Vector3)
@@ -306,6 +477,7 @@ function BaseUI.Init()
 	local UpgradeCapacity = remotesFolder:WaitForChild("UpgradeCapacity")
 	local InitialData = remotesFolder:WaitForChild("InitialData")
 	local SellConfirmed = remotesFolder:WaitForChild("SellConfirmed")
+	local BrainrotMutated = remotesFolder:WaitForChild("BrainrotMutated")
 
 	-- Build capacity UI
 	local screenGui = Instance.new("ScreenGui")
@@ -374,6 +546,15 @@ function BaseUI.Init()
 				removeBrainrotVisual(id)
 			end
 		end
+	end)
+
+	BrainrotMutated.OnClientEvent:Connect(function(data)
+		local part = brainrotParts[data.brainrotId]
+		if not part or not part.Parent then
+			return
+		end
+		addWeatherMutationEffect(part, data.weatherMutation)
+		updateBillboardWithWeatherMutation(data.brainrotId, data.weatherMutation)
 	end)
 end
 

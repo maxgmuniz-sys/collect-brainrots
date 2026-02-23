@@ -18,6 +18,10 @@ local REMOTE_NAMES = {
 	"SellBrainrot",
 	"SellAll",
 	"SellConfirmed",
+
+	-- Phase 6 remotes
+	"WeatherChanged",
+	"BrainrotMutated",
 }
 
 local Remotes = {}

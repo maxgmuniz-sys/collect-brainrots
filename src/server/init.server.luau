@@ -22,6 +22,9 @@ FoodService.init()
 local SellService = require(script.Services.SellService)
 SellService.init()
 
+local WeatherService = require(script.Services.WeatherService)
+WeatherService.init()
+
 -- Connect player lifecycle events
 Players.PlayerAdded:Connect(function(player)
 	DataService.onPlayerAdded(player)
