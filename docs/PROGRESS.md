@@ -11,7 +11,7 @@
 |-------|------|--------|-------|
 | Docs | Documentation Suite | DONE | All 13 docs written |
 | 0 | Setup & Tooling | DONE | All tools installed, project scaffold complete |
-| 1 | MVP Core Loop | IN PROGRESS | All 14 files written, needs playtest |
+| 1 | MVP Core Loop | DONE | All 14 files, playtested, core loop works |
 | 2 | Full Rarity & Food | NOT STARTED | All 25 brainrots, all 8 food tiers, balance costs |
 | 3 | Size System | NOT STARTED | Random weighted sizes, weight in lbs |
 | 4 | Base Mutations | NOT STARTED | Gold/Diamond/Rainbow from food |
@@ -80,8 +80,8 @@
 - [x] init.server.luau
 - [x] init.client.luau
 - [x] rojo build succeeds
-- [ ] Playtest: core loop works
-- [ ] Git commit: "Phase 1: MVP core loop"
+- [x] Playtest: core loop works
+- [x] Git commit: "Phase 1: MVP core loop"
 
 ---
 
