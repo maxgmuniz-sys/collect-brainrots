@@ -13,6 +13,11 @@ local REMOTE_NAMES = {
 	"UpgradeCapacity",
 	"CapacityUpdated",
 	"InitialData",
+
+	-- Phase 5 remotes
+	"SellBrainrot",
+	"SellAll",
+	"SellConfirmed",
 }
 
 local Remotes = {}

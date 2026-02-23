@@ -9,7 +9,7 @@ local player = Players.LocalPlayer
 
 local currentMoney = 0
 local isBaseFull = false
-local baseFullShowing = false
+local wasBaseFull = false
 local buyButtons = {}
 
 local FoodStoreUI = {}
@@ -209,19 +209,15 @@ function FoodStoreUI.Init()
 			end
 		end
 
-		if isBaseFull and not baseFullShowing then
-			baseFullShowing = true
+		if isBaseFull and not wasBaseFull then
 			baseFullLabel.Visible = true
 			baseFullLabel.TextTransparency = 0
 			baseFullLabel.BackgroundTransparency = 0.3
 			task.delay(3, function()
 				baseFullLabel.Visible = false
-				baseFullShowing = false
 			end)
-		elseif not isBaseFull then
-			baseFullLabel.Visible = false
-			baseFullShowing = false
 		end
+		wasBaseFull = isBaseFull
 	end
 
 	-- Connect remotes

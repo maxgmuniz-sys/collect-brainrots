@@ -1,7 +1,7 @@
 # PROGRESS.md — Collect Brainrot's🦈
 
-**Last Updated:** 2026-02-22
-**Current Phase:** Phase 4 (Base Mutations) — DONE
+**Last Updated:** 2026-02-23
+**Current Phase:** Phase 5 (Base Management) — DONE
 
 ---
 
@@ -15,7 +15,7 @@
 | 2 | Full Rarity & Food | DONE | All 8 tiers, balanced costs, rarity colors, scrolling store UI |
 | 3 | Size System | DONE | 5 size tiers, weighted sizes, visual scaling, weight in lbs |
 | 4 | Base Mutations | DONE | Gold/Diamond/Rainbow mutations, particles, rainbow cycling |
-| 5 | Base Management | NOT STARTED | Capacity upgrades (1→30), sell store, fencing |
+| 5 | Base Management | DONE | Capacity upgrades (1→30), sell store, fencing, bug fixes |
 | 6 | Weather System | NOT STARTED | 7 weather events, weather mutations, music |
 | 7 | Index & Social | NOT STARTED | Codex, gifting, leaderboards |
 | 8 | Advanced Features | NOT STARTED | Fusion, lucky hours, VIP food, personalities |
@@ -124,14 +124,18 @@
 
 ## Phase 5: Base Management
 
-- [ ] Update BaseService.luau (capacity upgrades)
-- [ ] Create SellService.luau
-- [ ] Create SellUI.luau
-- [ ] Update BaseUI.luau (upgrade button, fencing)
-- [ ] Update Remotes/init.luau (sell remotes)
-- [ ] Update init.server.luau + init.client.luau
-- [ ] Playtest: upgrades work, sell works, fence visible
-- [ ] Git commit: "Phase 5: Base management and sell store"
+- [x] Update BaseService.luau (capacity upgrades)
+- [x] Create SellService.luau
+- [x] Create SellUI.luau
+- [x] Update BaseUI.luau (upgrade button, fencing, sell cleanup)
+- [x] Update Remotes/init.luau (sell remotes)
+- [x] Update init.server.luau + init.client.luau
+- [x] Fix: sold brainrots now disappear from 3D world (soldIds in SellConfirmed)
+- [x] Fix: fence and brainrots sit on ground (plotPosition Y=0)
+- [x] Fix: Base Full message no longer flickers (state-transition tracking)
+- [x] Fix: sell store list cleanup removes all children (not just Frames)
+- [x] Playtest: upgrades work, sell works, fence visible, all bugs fixed
+- [x] Git commit: "Phase 5: Base management and sell store"
 
 ---
 

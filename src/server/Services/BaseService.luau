@@ -8,13 +8,49 @@ local PLOT_POSITIONS = {
 }
 local MAX_PLOTS = 1
 
+local MAX_CAPACITY = 30
+local UPGRADE_BASE_COST = 500
+local UPGRADE_COST_MULTIPLIER = 2.5
+
 local playerPlots = {}
 local occupiedPlots = {}
 
 local BaseService = {}
+BaseService.MAX_CAPACITY = MAX_CAPACITY
 
 local function handleUpgradeCapacity(player: Player)
-	warn("Capacity upgrade not available in Phase 1")
+	local data = DataService.getData(player)
+	if not data then
+		warn("[BaseService] UpgradeCapacity: No data for " .. player.Name)
+		return
+	end
+
+	if data.baseCapacity >= MAX_CAPACITY then
+		warn("[BaseService] UpgradeCapacity: Already at max capacity for " .. player.Name)
+		return
+	end
+
+	local cost = math.floor(UPGRADE_BASE_COST * UPGRADE_COST_MULTIPLIER ^ (data.baseCapacity - 1))
+
+	if not DataService.subtractMoney(player, cost) then
+		warn("[BaseService] UpgradeCapacity: Insufficient money for " .. player.Name)
+		return
+	end
+
+	data.baseCapacity = data.baseCapacity + 1
+	Remotes.CapacityUpdated:FireClient(player, { current = #data.ownedBrainrots, max = data.baseCapacity })
+	print("[BaseService] " .. player.Name .. " upgraded capacity to " .. data.baseCapacity)
+end
+
+function BaseService.getUpgradeCost(player: Player): number?
+	local data = DataService.getData(player)
+	if not data then
+		return nil
+	end
+	if data.baseCapacity >= MAX_CAPACITY then
+		return nil
+	end
+	return math.floor(UPGRADE_BASE_COST * UPGRADE_COST_MULTIPLIER ^ (data.baseCapacity - 1))
 end
 
 function BaseService.init()

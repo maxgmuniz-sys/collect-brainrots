@@ -18,12 +18,38 @@ local RARITY_COLORS = {
 	Unknown = Color3.fromRGB(255, 0, 255),
 }
 
+local MAX_CAPACITY = 30
+local UPGRADE_BASE_COST = 500
+local UPGRADE_COST_MULTIPLIER = 2.5
+
+local FENCE_COLOR = Color3.fromRGB(139, 90, 43)
+local FENCE_POST_SIZE = Vector3.new(0.5, 4, 0.5)
+local FENCE_RAIL_HEIGHT = 3
+local FENCE_RAIL_THICKNESS = 0.3
+local PLOT_SIZE = 30
+
 local brainrotParts = {}
 local brainrotConnections = {}
+local fenceParts = {}
 local plotPosition = nil
 local capacityLabel = nil
+local upgradeButton = nil
 
 local BaseUI = {}
+
+local function removeBrainrotVisual(brainrotId)
+	local connection = brainrotConnections[brainrotId]
+	if connection then
+		connection:Disconnect()
+		brainrotConnections[brainrotId] = nil
+	end
+
+	local part = brainrotParts[brainrotId]
+	if part then
+		part:Destroy()
+		brainrotParts[brainrotId] = nil
+	end
+end
 
 local function spawnBrainrotVisual(brainrot)
 	if not plotPosition then
@@ -191,11 +217,95 @@ local function spawnBrainrotVisual(brainrot)
 	brainrotParts[brainrot.id] = part
 end
 
+local function createFence(center: Vector3)
+	for _, part in fenceParts do
+		part:Destroy()
+	end
+	table.clear(fenceParts)
+
+	local halfSize = PLOT_SIZE / 2
+
+	local corners = {
+		Vector3.new(center.X - halfSize, center.Y, center.Z - halfSize),
+		Vector3.new(center.X + halfSize, center.Y, center.Z - halfSize),
+		Vector3.new(center.X + halfSize, center.Y, center.Z + halfSize),
+		Vector3.new(center.X - halfSize, center.Y, center.Z + halfSize),
+	}
+
+	-- Corner posts
+	for _, cornerPos in corners do
+		local post = Instance.new("Part")
+		post.Anchored = true
+		post.CanCollide = false
+		post.Size = FENCE_POST_SIZE
+		post.Position = cornerPos + Vector3.new(0, FENCE_POST_SIZE.Y / 2, 0)
+		post.Color = FENCE_COLOR
+		post.Material = Enum.Material.Wood
+		post.Parent = workspace
+		table.insert(fenceParts, post)
+	end
+
+	-- Rails between consecutive corners
+	for i = 1, 4 do
+		local startCorner = corners[i]
+		local endCorner = corners[(i % 4) + 1]
+		local midpoint = (startCorner + endCorner) / 2
+		local direction = (endCorner - startCorner).Unit
+		local length = (endCorner - startCorner).Magnitude
+
+		-- Determine rail size based on direction
+		local railSize
+		if math.abs(direction.X) > 0.5 then
+			railSize = Vector3.new(length, FENCE_RAIL_THICKNESS, FENCE_RAIL_THICKNESS)
+		else
+			railSize = Vector3.new(FENCE_RAIL_THICKNESS, FENCE_RAIL_THICKNESS, length)
+		end
+
+		-- Top rail
+		local topRail = Instance.new("Part")
+		topRail.Anchored = true
+		topRail.CanCollide = false
+		topRail.Material = Enum.Material.Wood
+		topRail.Color = FENCE_COLOR
+		topRail.Size = railSize
+		topRail.Position = midpoint + Vector3.new(0, FENCE_RAIL_HEIGHT, 0)
+		topRail.Parent = workspace
+		table.insert(fenceParts, topRail)
+
+		-- Bottom rail
+		local bottomRail = Instance.new("Part")
+		bottomRail.Anchored = true
+		bottomRail.CanCollide = false
+		bottomRail.Material = Enum.Material.Wood
+		bottomRail.Color = FENCE_COLOR
+		bottomRail.Size = railSize
+		bottomRail.Position = midpoint + Vector3.new(0, FENCE_RAIL_HEIGHT / 2, 0)
+		bottomRail.Parent = workspace
+		table.insert(fenceParts, bottomRail)
+	end
+end
+
+local function updateUpgradeButton(maxCapacity: number)
+	if not upgradeButton then
+		return
+	end
+	if maxCapacity >= MAX_CAPACITY then
+		upgradeButton.Text = "MAX CAPACITY (30/30)"
+		upgradeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	else
+		local cost = math.floor(UPGRADE_BASE_COST * UPGRADE_COST_MULTIPLIER ^ (maxCapacity - 1))
+		upgradeButton.Text = "Upgrade (" .. maxCapacity .. "/" .. MAX_CAPACITY .. ") - $" .. Utils.formatNumber(cost)
+		upgradeButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+	end
+end
+
 function BaseUI.Init()
 	local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 	local BrainrotSpawned = remotesFolder:WaitForChild("BrainrotSpawned")
 	local CapacityUpdated = remotesFolder:WaitForChild("CapacityUpdated")
+	local UpgradeCapacity = remotesFolder:WaitForChild("UpgradeCapacity")
 	local InitialData = remotesFolder:WaitForChild("InitialData")
+	local SellConfirmed = remotesFolder:WaitForChild("SellConfirmed")
 
 	-- Build capacity UI
 	local screenGui = Instance.new("ScreenGui")
@@ -215,10 +325,34 @@ function BaseUI.Init()
 	capacityLabel.BackgroundTransparency = 1
 	capacityLabel.Parent = screenGui
 
+	-- Upgrade button
+	upgradeButton = Instance.new("TextButton")
+	upgradeButton.Name = "UpgradeButton"
+	upgradeButton.Position = UDim2.new(1, -10, 0, 55)
+	upgradeButton.AnchorPoint = Vector2.new(1, 0)
+	upgradeButton.Size = UDim2.new(0, 250, 0, 40)
+	upgradeButton.Text = "Upgrade (1/30) - $500"
+	upgradeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	upgradeButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+	upgradeButton.TextScaled = true
+	upgradeButton.Font = Enum.Font.GothamBold
+	upgradeButton.Parent = screenGui
+
+	local upgradeCorner = Instance.new("UICorner")
+	upgradeCorner.CornerRadius = UDim.new(0, 8)
+	upgradeCorner.Parent = upgradeButton
+
+	upgradeButton.Activated:Connect(function()
+		UpgradeCapacity:FireServer()
+	end)
+
 	-- Connect remotes
 	InitialData.OnClientEvent:Connect(function(data)
 		capacityLabel.Text = data.capacity.current .. "/" .. data.capacity.max .. " Brainrots"
-		plotPosition = Vector3.new(0, 1, 0)
+		updateUpgradeButton(data.capacity.max)
+		plotPosition = Vector3.new(0, 0, 0)
+
+		createFence(plotPosition)
 
 		for _, brainrot in data.brainrots do
 			spawnBrainrotVisual(brainrot)
@@ -231,6 +365,15 @@ function BaseUI.Init()
 
 	CapacityUpdated.OnClientEvent:Connect(function(data)
 		capacityLabel.Text = data.current .. "/" .. data.max .. " Brainrots"
+		updateUpgradeButton(data.max)
+	end)
+
+	SellConfirmed.OnClientEvent:Connect(function(data)
+		if data.soldIds then
+			for _, id in data.soldIds do
+				removeBrainrotVisual(id)
+			end
+		end
 	end)
 end
 

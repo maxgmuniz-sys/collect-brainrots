@@ -19,6 +19,9 @@ EarningsService.init()
 local FoodService = require(script.Services.FoodService)
 FoodService.init()
 
+local SellService = require(script.Services.SellService)
+SellService.init()
+
 -- Connect player lifecycle events
 Players.PlayerAdded:Connect(function(player)
 	DataService.onPlayerAdded(player)
@@ -38,4 +41,4 @@ for _, player in Players:GetPlayers() do
 	end)
 end
 
-print("[Server] All Phase 1 services initialized.")
+print("[Server] All services initialized.")
