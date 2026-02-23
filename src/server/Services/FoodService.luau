@@ -9,9 +9,6 @@ local BaseService = require(ServerScriptService.Server.Services.BaseService)
 local EarningsService = require(ServerScriptService.Server.Services.EarningsService)
 local Remotes = require(ServerScriptService.Server.Remotes)
 
--- Phase 1 gate: only these food tiers are allowed
-local ALLOWED_FOODS_PHASE1 = { ["Common Chow"] = true }
-
 local FoodService = {}
 
 local function handleBuyFood(player: Player, data: { [string]: any })
@@ -36,12 +33,6 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 		return
 	end
 
-	-- Phase 1 gate
-	if not ALLOWED_FOODS_PHASE1[foodTier] then
-		warn("[FoodService] Food tier not available yet: " .. foodTier)
-		return
-	end
-
 	-- Validate money
 	if playerData.money < food.cost then
 		warn("[FoodService] Not enough money for " .. player.Name)
@@ -60,8 +51,8 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 		return
 	end
 
-	-- Roll rarity
-	local rarityWeights = Foods.RARITY_WEIGHTS[foodTier]
+	-- Roll rarity using the food tier's own rarityWeights
+	local rarityWeights = food.rarityWeights
 	local rolledRarity = Utils.weightedRandom(rarityWeights)
 
 	-- Roll brainrot

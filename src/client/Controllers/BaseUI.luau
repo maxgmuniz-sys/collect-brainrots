@@ -6,14 +6,14 @@ local Utils = require(ReplicatedStorage.Shared.Utils)
 local player = Players.LocalPlayer
 
 local RARITY_COLORS = {
-	Common = Color3.fromRGB(255, 255, 255),
-	Rare = Color3.fromRGB(52, 152, 219),
-	Epic = Color3.fromRGB(155, 89, 182),
-	Legendary = Color3.fromRGB(230, 126, 34),
-	Mythic = Color3.fromRGB(231, 76, 60),
-	Goldy = Color3.fromRGB(241, 196, 15),
-	Secret = Color3.fromRGB(26, 188, 156),
-	Unknown = Color3.fromRGB(44, 62, 80),
+	Common = Color3.fromRGB(170, 170, 170),
+	Rare = Color3.fromRGB(85, 170, 255),
+	Epic = Color3.fromRGB(170, 85, 255),
+	Legendary = Color3.fromRGB(255, 170, 0),
+	Mythic = Color3.fromRGB(255, 85, 85),
+	Goldy = Color3.fromRGB(255, 215, 0),
+	Secret = Color3.fromRGB(0, 0, 0),
+	Unknown = Color3.fromRGB(255, 0, 255),
 }
 
 local brainrotParts = {}
@@ -27,12 +27,14 @@ local function spawnBrainrotVisual(brainrot)
 		return
 	end
 
+	local rarityColor = RARITY_COLORS[brainrot.rarity] or Color3.fromRGB(170, 170, 170)
+
 	local part = Instance.new("Part")
 	part.Name = "Brainrot_" .. brainrot.id
 	part.Anchored = true
 	part.CanCollide = false
 	part.Size = Vector3.new(3, 3, 3)
-	part.Color = RARITY_COLORS[brainrot.rarity] or Color3.fromRGB(255, 255, 255)
+	part.Color = rarityColor
 
 	local offsetX = math.random(-5, 5)
 	local offsetZ = math.random(-5, 5)
@@ -42,27 +44,52 @@ local function spawnBrainrotVisual(brainrot)
 		plotPosition.Z + offsetZ
 	)
 
-	-- BillboardGui for name and earnings
+	-- BillboardGui for rarity, name, and earnings
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 200, 0, 60)
+	billboard.Size = UDim2.new(0, 220, 0, 80)
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = part
 
+	-- Rarity label
+	local rarityLabel = Instance.new("TextLabel")
+	rarityLabel.Size = UDim2.new(1, 0, 0, 20)
+	rarityLabel.Position = UDim2.new(0, 0, 0, 0)
+	rarityLabel.Text = brainrot.rarity
+	rarityLabel.Font = Enum.Font.GothamBold
+	rarityLabel.TextScaled = true
+	rarityLabel.BackgroundTransparency = 1
+	rarityLabel.Parent = billboard
+
+	if brainrot.rarity == "Secret" then
+		rarityLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		rarityLabel.TextColor3 = rarityColor
+	end
+
+	-- Name label
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	nameLabel.Size = UDim2.new(1, 0, 0, 25)
+	nameLabel.Position = UDim2.new(0, 0, 0, 20)
 	nameLabel.Text = brainrot.name
-	nameLabel.TextColor3 = RARITY_COLORS[brainrot.rarity] or Color3.fromRGB(255, 255, 255)
-	nameLabel.TextScaled = true
 	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextScaled = true
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Parent = billboard
 
+	if brainrot.rarity == "Secret" then
+		nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	else
+		nameLabel.TextColor3 = rarityColor
+	end
+
+	-- Earnings label
 	local earningsLabel = Instance.new("TextLabel")
-	earningsLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	earningsLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	earningsLabel.Size = UDim2.new(1, 0, 0, 20)
+	earningsLabel.Position = UDim2.new(0, 0, 0, 45)
 	earningsLabel.Text = "+$" .. Utils.formatNumber(brainrot.earningsPerSec) .. "/sec"
 	earningsLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
+	earningsLabel.Font = Enum.Font.Gotham
 	earningsLabel.TextScaled = true
 	earningsLabel.BackgroundTransparency = 1
 	earningsLabel.Parent = billboard
