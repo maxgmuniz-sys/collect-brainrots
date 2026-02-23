@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
+local Personalities = require(ReplicatedStorage.Shared.Config.Personalities)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 
 local player = Players.LocalPlayer
@@ -391,6 +392,30 @@ local function addGiftButton(brainrotPart, brainrotId: string, GiftBrainrot)
 	end)
 end
 
+local function startIdleBob(part, speed: number)
+	local baseY = part.Position.Y
+	local elapsed = 0
+	local bobHeight = 0.3
+	local bobFrequency = 1.5 * speed
+
+	local connection
+	connection = RunService.RenderStepped:Connect(function(dt)
+		if not part or not part.Parent then
+			connection:Disconnect()
+			return
+		end
+
+		elapsed += dt
+		local offset = math.sin(elapsed * bobFrequency * math.pi * 2) * bobHeight
+		part.Position = Vector3.new(part.Position.X, baseY + offset, part.Position.Z)
+	end)
+
+	-- Store connection for cleanup
+	if not brainrotConnections[part.Name:gsub("Brainrot_", "")] then
+		brainrotConnections[part.Name:gsub("Brainrot_", "")] = connection
+	end
+end
+
 local function spawnBrainrotVisual(brainrot)
 	if not plotPosition then
 		return
@@ -419,11 +444,7 @@ local function spawnBrainrotVisual(brainrot)
 	local yOffset = scaledSize / 2
 	local offsetX = math.random(-5, 5)
 	local offsetZ = math.random(-5, 5)
-	part.Position = Vector3.new(
-		plotPosition.X + offsetX,
-		plotPosition.Y + yOffset,
-		plotPosition.Z + offsetZ
-	)
+	part.Position = Vector3.new(plotPosition.X + offsetX, plotPosition.Y + yOffset, plotPosition.Z + offsetZ)
 
 	-- Particle emitter for mutated brainrots
 	if brainrot.baseMutation then
@@ -543,8 +564,8 @@ local function spawnBrainrotVisual(brainrot)
 
 	-- Info label: "[Weight] lbs | +$[Earnings]/sec"
 	local infoLabel = Instance.new("TextLabel")
-	infoLabel.Size = UDim2.new(1, 0, 0.5, 0)
-	infoLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	infoLabel.Size = UDim2.new(1, 0, 0.35, 0)
+	infoLabel.Position = UDim2.new(0, 0, 0.45, 0)
 	infoLabel.Text = tostring(brainrot.weight) .. " lbs | +$" .. Utils.formatNumber(brainrot.earningsPerSec) .. "/sec"
 	infoLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
 	infoLabel.Font = Enum.Font.Gotham
@@ -552,7 +573,26 @@ local function spawnBrainrotVisual(brainrot)
 	infoLabel.BackgroundTransparency = 1
 	infoLabel.Parent = billboard
 
+	-- Personality label (Phase 8)
+	if brainrot.personality then
+		local personalityColor = Personalities.getColor(brainrot.personality) or Color3.fromRGB(200, 200, 200)
+		local personalityLabel = Instance.new("TextLabel")
+		personalityLabel.Name = "PersonalityLabel"
+		personalityLabel.Size = UDim2.new(1, 0, 0.2, 0)
+		personalityLabel.Position = UDim2.new(0, 0, 0.8, 0)
+		personalityLabel.Text = brainrot.personality
+		personalityLabel.TextColor3 = personalityColor
+		personalityLabel.Font = Enum.Font.GothamBold
+		personalityLabel.TextScaled = true
+		personalityLabel.BackgroundTransparency = 1
+		personalityLabel.Parent = billboard
+	end
+
 	part.Parent = workspace
+
+	-- Start idle bob animation scaled by personality speed (Phase 8)
+	local animSpeed = Personalities.getAnimationSpeed(brainrot.personality)
+	startIdleBob(part, animSpeed)
 
 	brainrotParts[brainrot.id] = part
 

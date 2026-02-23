@@ -28,6 +28,9 @@ SellService.init()
 local WeatherService = require(script.Services.WeatherService)
 WeatherService.init()
 
+local LuckyHourService = require(script.Services.LuckyHourService)
+LuckyHourService.init()
+
 local GiftService = require(script.Services.GiftService)
 GiftService.init()
 

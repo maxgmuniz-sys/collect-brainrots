@@ -30,6 +30,13 @@ local REMOTE_NAMES = {
 	"GiftReceived",
 	"RequestLeaderboard",
 	"LeaderboardData",
+
+	-- Phase 8 remotes
+	"FuseBrainrots",
+	"FuseResult",
+	"LuckyHourStarted",
+	"LuckyHourEnded",
+	"TutorialComplete",
 }
 
 local Remotes = {}

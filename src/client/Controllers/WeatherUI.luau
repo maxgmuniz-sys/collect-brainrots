@@ -19,6 +19,12 @@ local countdownLabel = nil
 local descriptionLabel = nil
 local activeSound: Sound? = nil
 
+-- Lucky Hour state
+local luckyHourBanner = nil
+local luckyHourCountdown = nil
+local luckyHourEndTime: number = 0
+local isLuckyHourActive = false
+
 local WEATHER_COLORS = {
 	Clear = Color3.fromRGB(255, 255, 200),
 	Rain = Color3.fromRGB(100, 150, 255),
@@ -1020,14 +1026,115 @@ local function updateCountdown()
 	end
 end
 
+local function createLuckyHourBanner()
+	local screenGui = player.PlayerGui:FindFirstChild("WeatherUI")
+	if not screenGui then
+		return
+	end
+
+	luckyHourBanner = Instance.new("Frame")
+	luckyHourBanner.Name = "LuckyHourBanner"
+	luckyHourBanner.Size = UDim2.new(0.35, 0, 0, 50)
+	luckyHourBanner.Position = UDim2.new(0.325, 0, 0, -60)
+	luckyHourBanner.AnchorPoint = Vector2.new(0, 0)
+	luckyHourBanner.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+	luckyHourBanner.BackgroundTransparency = 0.15
+	luckyHourBanner.BorderSizePixel = 0
+	luckyHourBanner.ZIndex = 6
+	luckyHourBanner.Parent = screenGui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = luckyHourBanner
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "LuckyTitle"
+	titleLabel.Size = UDim2.new(1, -10, 0, 26)
+	titleLabel.Position = UDim2.new(0, 5, 0, 2)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.TextColor3 = Color3.fromRGB(60, 30, 0)
+	titleLabel.TextScaled = true
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.Text = "LUCKY HOUR! Rare+ chances doubled!"
+	titleLabel.ZIndex = 6
+	titleLabel.Parent = luckyHourBanner
+
+	luckyHourCountdown = Instance.new("TextLabel")
+	luckyHourCountdown.Name = "LuckyCountdown"
+	luckyHourCountdown.Size = UDim2.new(1, -10, 0, 18)
+	luckyHourCountdown.Position = UDim2.new(0, 5, 0, 28)
+	luckyHourCountdown.BackgroundTransparency = 1
+	luckyHourCountdown.TextColor3 = Color3.fromRGB(80, 40, 0)
+	luckyHourCountdown.TextScaled = true
+	luckyHourCountdown.Font = Enum.Font.Gotham
+	luckyHourCountdown.Text = ""
+	luckyHourCountdown.ZIndex = 6
+	luckyHourCountdown.Parent = luckyHourBanner
+end
+
+local function showLuckyHourBanner(duration: number)
+	isLuckyHourActive = true
+	luckyHourEndTime = os.clock() + duration
+
+	if not luckyHourBanner then
+		createLuckyHourBanner()
+	end
+
+	if luckyHourBanner then
+		local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(luckyHourBanner, tweenInfo, { Position = UDim2.new(0.325, 0, 0, 5) }):Play()
+	end
+end
+
+local function hideLuckyHourBanner()
+	isLuckyHourActive = false
+	luckyHourEndTime = 0
+
+	if luckyHourBanner then
+		local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(luckyHourBanner, tweenInfo, { Position = UDim2.new(0.325, 0, 0, -60) }):Play()
+	end
+end
+
+local function updateLuckyHourCountdown()
+	if not isLuckyHourActive or luckyHourEndTime == 0 then
+		return
+	end
+
+	local remaining = math.max(0, math.ceil(luckyHourEndTime - os.clock()))
+	if luckyHourCountdown then
+		if remaining > 0 then
+			local minutes = math.floor(remaining / 60)
+			local seconds = remaining % 60
+			luckyHourCountdown.Text = string.format("Time left: %d:%02d", minutes, seconds)
+		else
+			luckyHourCountdown.Text = "Ending..."
+		end
+	end
+end
+
 function WeatherUI.Init()
 	createBannerUI()
 
 	local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 	local WeatherChanged = remotesFolder:WaitForChild("WeatherChanged")
+	local LuckyHourStarted = remotesFolder:WaitForChild("LuckyHourStarted")
+	local LuckyHourEnded = remotesFolder:WaitForChild("LuckyHourEnded")
 
 	WeatherChanged.OnClientEvent:Connect(onWeatherChanged)
-	RunService.RenderStepped:Connect(updateCountdown)
+
+	LuckyHourStarted.OnClientEvent:Connect(function(data)
+		showLuckyHourBanner(data.duration)
+	end)
+
+	LuckyHourEnded.OnClientEvent:Connect(function()
+		hideLuckyHourBanner()
+	end)
+
+	RunService.RenderStepped:Connect(function()
+		updateCountdown()
+		updateLuckyHourCountdown()
+	end)
 end
 
 return WeatherUI

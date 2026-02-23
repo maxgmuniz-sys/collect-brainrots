@@ -11,6 +11,7 @@ local currentMoney = 0
 local isBaseFull = false
 local wasBaseFull = false
 local buyButtons = {}
+local luckyHourIndicator = nil
 
 local FoodStoreUI = {}
 
@@ -22,6 +23,8 @@ function FoodStoreUI.Init()
 	local MoneyUpdated = remotesFolder:WaitForChild("MoneyUpdated")
 	local CapacityUpdated = remotesFolder:WaitForChild("CapacityUpdated")
 	local InitialData = remotesFolder:WaitForChild("InitialData")
+	local LuckyHourStarted = remotesFolder:WaitForChild("LuckyHourStarted")
+	local LuckyHourEnded = remotesFolder:WaitForChild("LuckyHourEnded")
 
 	-- Build UI
 	local screenGui = Instance.new("ScreenGui")
@@ -78,8 +81,26 @@ function FoodStoreUI.Init()
 	listPadding.PaddingRight = UDim.new(0, 4)
 	listPadding.Parent = foodList
 
-	-- Create food rows
+	-- Lucky Hour indicator label
+	luckyHourIndicator = Instance.new("TextLabel")
+	luckyHourIndicator.Name = "LuckyHourIndicator"
+	luckyHourIndicator.Position = UDim2.new(0.5, 0, 0, 38)
+	luckyHourIndicator.AnchorPoint = Vector2.new(0.5, 1)
+	luckyHourIndicator.Size = UDim2.new(1, -20, 0, 16)
+	luckyHourIndicator.Text = "LUCKY HOUR ACTIVE - Rare+ boosted!"
+	luckyHourIndicator.TextColor3 = Color3.fromRGB(255, 200, 0)
+	luckyHourIndicator.TextScaled = true
+	luckyHourIndicator.Font = Enum.Font.GothamBold
+	luckyHourIndicator.BackgroundTransparency = 1
+	luckyHourIndicator.Visible = false
+	luckyHourIndicator.Parent = storeFrame
+
+	-- Create food rows (skip VIP foods if VIP event is not active)
 	for i, food in Foods.FOODS do
+		if food.isVIP and not Foods.VIP_EVENT_ACTIVE then
+			continue
+		end
+
 		local row = Instance.new("Frame")
 		row.Name = "FoodRow_" .. i
 		row.Size = UDim2.new(1, 0, 0, 72)
@@ -240,10 +261,13 @@ function FoodStoreUI.Init()
 	BrainrotSpawned.OnClientEvent:Connect(function(data)
 		local b = data.brainrotData
 
-		-- Build descriptor: "[MUTATION] [SizeLabel] [Rarity] [Name]"
+		-- Build descriptor: "[MUTATION] [Personality] [SizeLabel] [Rarity] [Name]"
 		local revealParts = {}
 		if b.baseMutation then
 			table.insert(revealParts, string.upper(b.baseMutation))
+		end
+		if b.personality then
+			table.insert(revealParts, b.personality)
 		end
 		table.insert(revealParts, b.sizeLabel)
 		table.insert(revealParts, b.rarity)
@@ -289,6 +313,19 @@ function FoodStoreUI.Init()
 		task.delay(3, function()
 			feedbackLabel.TextTransparency = 1
 		end)
+	end)
+
+	-- Lucky Hour indicator
+	LuckyHourStarted.OnClientEvent:Connect(function()
+		if luckyHourIndicator then
+			luckyHourIndicator.Visible = true
+		end
+	end)
+
+	LuckyHourEnded.OnClientEvent:Connect(function()
+		if luckyHourIndicator then
+			luckyHourIndicator.Visible = false
+		end
 	end)
 end
 

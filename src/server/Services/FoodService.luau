@@ -4,12 +4,14 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Brainrots = require(ReplicatedStorage.Shared.Config.Brainrots)
 local Foods = require(ReplicatedStorage.Shared.Config.Foods)
 local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
+local Personalities = require(ReplicatedStorage.Shared.Config.Personalities)
 local Sizes = require(ReplicatedStorage.Shared.Config.Sizes)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local BaseService = require(ServerScriptService.Server.Services.BaseService)
 local EarningsService = require(ServerScriptService.Server.Services.EarningsService)
 local IndexService = require(ServerScriptService.Server.Services.IndexService)
+local LuckyHourService = require(ServerScriptService.Server.Services.LuckyHourService)
 local Remotes = require(ServerScriptService.Server.Remotes)
 
 local FoodService = {}
@@ -55,7 +57,17 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 	end
 
 	-- Roll rarity using the food tier's own rarityWeights
-	local rarityWeights = food.rarityWeights
+	-- Apply Lucky Hour boost to Rare+ weights before rolling
+	local rarityWeights = {}
+	local RARE_AND_ABOVE =
+		{ Rare = true, Epic = true, Legendary = true, Mythic = true, Goldy = true, Secret = true, Unknown = true }
+	for rarity, weight in food.rarityWeights do
+		if RARE_AND_ABOVE[rarity] and LuckyHourService.isActive() then
+			rarityWeights[rarity] = weight * LuckyHourService.getRarityBoost()
+		else
+			rarityWeights[rarity] = weight
+		end
+	end
 	local rolledRarity = Utils.weightedRandom(rarityWeights)
 
 	-- Roll brainrot
@@ -73,8 +85,12 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 	local baseMutation = Mutations.rollBaseMutation()
 	local baseMutationMult = Mutations.getBaseMutationMultiplier(baseMutation)
 
-	-- Earnings = base * size * mutation
-	local earningsPerSec = brainrotConfig.baseEarningsPerSec * size * baseMutationMult
+	-- Roll personality
+	local personality = Personalities.rollPersonality()
+	local personalityMult = Personalities.getEarningsMultiplier(personality)
+
+	-- Earnings = base * size * mutation * personality
+	local earningsPerSec = brainrotConfig.baseEarningsPerSec * size * baseMutationMult * personalityMult
 
 	-- Construct BrainrotInstance
 	local brainrotInstance = {
@@ -86,7 +102,7 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 		weight = weight,
 		baseMutation = baseMutation,
 		weatherMutation = nil,
-		personality = nil,
+		personality = personality,
 		earningsPerSec = earningsPerSec,
 	}
 
@@ -111,8 +127,141 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 	end
 end
 
+local NEXT_RARITY = {
+	Common = "Rare",
+	Rare = "Epic",
+	Epic = "Legendary",
+	Legendary = "Mythic",
+	Mythic = "Goldy",
+	Goldy = "Secret",
+	Secret = "Unknown",
+}
+
+local function handleFuseBrainrots(player: Player, data: { [string]: any })
+	-- Validate payload
+	if type(data) ~= "table" or type(data.brainrotName) ~= "string" then
+		warn("[FoodService] Invalid fusion payload from " .. player.Name)
+		return
+	end
+
+	local playerData = DataService.getData(player)
+	if not playerData then
+		warn("[FoodService] No data for " .. player.Name)
+		return
+	end
+
+	local brainrotName = data.brainrotName
+
+	-- Validate the brainrot exists in config
+	local brainrotConfig = Brainrots.BRAINROT_BY_NAME[brainrotName]
+	if not brainrotConfig then
+		warn("[FoodService] Unknown brainrot for fusion: " .. brainrotName)
+		return
+	end
+
+	-- Cannot fuse Unknown rarity
+	if brainrotConfig.rarity == "Unknown" then
+		warn("[FoodService] Cannot fuse Unknown rarity brainrots")
+		return
+	end
+
+	-- Find the next rarity tier
+	local nextRarity = NEXT_RARITY[brainrotConfig.rarity]
+	if not nextRarity then
+		warn("[FoodService] No next rarity for: " .. brainrotConfig.rarity)
+		return
+	end
+
+	-- Find 3 matching brainrots in inventory
+	local matchingIndices = {}
+	for i, brainrot in playerData.ownedBrainrots do
+		if brainrot.name == brainrotName then
+			table.insert(matchingIndices, i)
+			if #matchingIndices >= 3 then
+				break
+			end
+		end
+	end
+
+	if #matchingIndices < 3 then
+		warn("[FoodService] Not enough brainrots to fuse: " .. brainrotName .. " (" .. #matchingIndices .. "/3)")
+		return
+	end
+
+	-- Remove the 3 brainrots (iterate in reverse to avoid shifting issues)
+	table.sort(matchingIndices, function(a, b)
+		return a > b
+	end)
+	for _, idx in matchingIndices do
+		table.remove(playerData.ownedBrainrots, idx)
+	end
+
+	-- Roll a random brainrot from the next rarity tier
+	local nextRarityList = Brainrots.BRAINROTS_BY_RARITY[nextRarity]
+	if not nextRarityList or #nextRarityList == 0 then
+		warn("[FoodService] No brainrots in rarity: " .. nextRarity)
+		return
+	end
+	local newBrainrotName = nextRarityList[math.random(1, #nextRarityList)]
+	local newBrainrotConfig = Brainrots.BRAINROT_BY_NAME[newBrainrotName]
+
+	-- Roll fresh size, mutation, personality
+	local size, sizeLabel = Sizes.rollSize()
+	local weight = Sizes.getWeight(newBrainrotConfig.name, size)
+	local baseMutation = Mutations.rollBaseMutation()
+	local baseMutationMult = Mutations.getBaseMutationMultiplier(baseMutation)
+	local personality = Personalities.rollPersonality()
+	local personalityMult = Personalities.getEarningsMultiplier(personality)
+
+	local earningsPerSec = newBrainrotConfig.baseEarningsPerSec * size * baseMutationMult * personalityMult
+
+	local newBrainrot = {
+		id = Utils.generateId(),
+		name = newBrainrotConfig.name,
+		rarity = newBrainrotConfig.rarity,
+		size = size,
+		sizeLabel = sizeLabel,
+		weight = weight,
+		baseMutation = baseMutation,
+		weatherMutation = nil,
+		personality = personality,
+		earningsPerSec = earningsPerSec,
+	}
+
+	-- Insert new brainrot into inventory
+	table.insert(playerData.ownedBrainrots, newBrainrot)
+
+	-- Recalculate earnings
+	EarningsService.recalculate(player)
+
+	-- Register discovery in codex
+	IndexService.registerDiscovery(player, newBrainrot.name, newBrainrot.baseMutation)
+
+	-- Fire result to client
+	Remotes.FuseResult:FireClient(player, { brainrotData = newBrainrot })
+	Remotes.BrainrotSpawned:FireClient(player, { brainrotData = newBrainrot })
+
+	-- Update capacity (net -2: removed 3, added 1)
+	local current, max = BaseService.getCapacity(player)
+	Remotes.CapacityUpdated:FireClient(player, { current = current, max = max })
+
+	print(
+		"[FoodService] "
+			.. player.Name
+			.. " fused 3x "
+			.. brainrotName
+			.. " -> "
+			.. newBrainrot.personality
+			.. " "
+			.. newBrainrot.rarity
+			.. " "
+			.. newBrainrot.name
+	)
+end
+
 function FoodService.init()
 	Remotes.BuyFood.OnServerEvent:Connect(handleBuyFood)
+	Remotes.FuseBrainrots.OnServerEvent:Connect(handleFuseBrainrots)
 end
 
 return FoodService
