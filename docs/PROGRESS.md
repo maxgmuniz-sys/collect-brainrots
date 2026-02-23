@@ -1,7 +1,7 @@
 # PROGRESS.md — Collect Brainrot's🦈
 
 **Last Updated:** 2026-02-22
-**Current Phase:** Documentation (pre-development)
+**Current Phase:** Phase 0 (Setup & Tooling) — DONE
 
 ---
 
@@ -10,7 +10,7 @@
 | Phase | Name | Status | Notes |
 |-------|------|--------|-------|
 | Docs | Documentation Suite | DONE | All 13 docs written |
-| 0 | Setup & Tooling | NOT STARTED | Install Wally, Rojo plugin, VS Code, project structure |
+| 0 | Setup & Tooling | DONE | All tools installed, project scaffold complete |
 | 1 | MVP Core Loop | NOT STARTED | Common food + common brainrots + money/sec |
 | 2 | Full Rarity & Food | NOT STARTED | All 25 brainrots, all 8 food tiers, balance costs |
 | 3 | Size System | NOT STARTED | Random weighted sizes, weight in lbs |
@@ -44,19 +44,21 @@
 
 ## Phase 0: Setup & Tooling
 
-- [ ] Install Wally via aftman
-- [ ] Install Selene via aftman
-- [ ] Install StyLua via aftman
-- [ ] Install VS Code via winget
-- [ ] Create wally.toml with ProfileStore
-- [ ] Run wally install
-- [ ] Update default.project.json
-- [ ] Create directory structure
-- [ ] Delete Hello.luau
-- [ ] Update .gitignore
-- [ ] Install Rojo Studio plugin
-- [ ] Verify rojo build
-- [ ] Verify rojo serve + Studio connection
+- [x] Install Wally via aftman
+- [x] Install Selene via aftman
+- [x] Install StyLua via aftman
+- [x] Install VS Code via winget
+- [x] Create aftman.toml (pinned versions)
+- [x] Create wally.toml with ProfileStore
+- [x] Run wally install
+- [x] Update default.project.json (Packages + ServerPackages)
+- [x] Create directory structure (Config, Services, Remotes, Controllers)
+- [x] Delete Hello.luau
+- [x] Update .gitignore
+- [x] Install Rojo Studio plugin
+- [x] Verify rojo build
+- [x] Verify rojo serve (port 34872)
+- [ ] Verify Studio connection (user manual step)
 - [ ] Git commit: "Phase 0: Project setup and tooling"
 
 ---
@@ -199,4 +201,4 @@ _Use this section to document any crashes, issues, or recovery actions._
 
 | Date | Event | Resolution |
 |------|-------|------------|
-| | | |
+| 2026-02-22 | Wally ProfileStore package name wrong in spec | Spec said `madstudioroblox/profilestore@1.2.2` — correct name is `lm-loleris/profilestore@1.0.3`. Also must use `[server-dependencies]` (not `[dependencies]`), packages go to `ServerPackages/` |
