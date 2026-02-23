@@ -12,7 +12,7 @@
 | Docs | Documentation Suite | DONE | All 13 docs written |
 | 0 | Setup & Tooling | DONE | All tools installed, project scaffold complete |
 | 1 | MVP Core Loop | DONE | All 14 files, playtested, core loop works |
-| 2 | Full Rarity & Food | NOT STARTED | All 25 brainrots, all 8 food tiers, balance costs |
+| 2 | Full Rarity & Food | DONE | All 8 tiers, balanced costs, rarity colors, scrolling store UI |
 | 3 | Size System | NOT STARTED | Random weighted sizes, weight in lbs |
 | 4 | Base Mutations | NOT STARTED | Gold/Diamond/Rainbow from food |
 | 5 | Base Management | NOT STARTED | Capacity upgrades (1→30), sell store, fencing |
@@ -87,12 +87,12 @@
 
 ## Phase 2: Full Rarity & Food System
 
-- [ ] Update Foods.luau (balanced costs, rarity weights)
-- [ ] Update FoodService.luau (rarity-weighted rolling)
-- [ ] Update FoodStoreUI.luau (all 8 tiers)
-- [ ] Update BaseUI.luau (rarity colors)
-- [ ] Playtest: all rarities obtainable
-- [ ] Git commit: "Phase 2: Full rarity and food system"
+- [x] Update Foods.luau (balanced costs, per-food rarityWeights)
+- [x] Update FoodService.luau (removed Phase 1 gate, food.rarityWeights)
+- [x] Update FoodStoreUI.luau (scrolling frame, all 8 tiers, affordability gating)
+- [x] Update BaseUI.luau (new rarity colors, rarity label, Secret white text)
+- [x] Playtest: food store works, rarity colors show, Base Full flashes
+- [x] Git commit: "Phase 2: Full rarity and food system"
 
 ---
 
