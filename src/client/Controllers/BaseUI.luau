@@ -33,45 +33,35 @@ local function spawnBrainrotVisual(brainrot)
 	part.Name = "Brainrot_" .. brainrot.id
 	part.Anchored = true
 	part.CanCollide = false
-	part.Size = Vector3.new(3, 3, 3)
+
+	-- Scale the Part by the brainrot's size value
+	local basePartSize = 3
+	local scaledSize = basePartSize * brainrot.size
+	part.Size = Vector3.new(scaledSize, scaledSize, scaledSize)
 	part.Color = rarityColor
 
+	-- Y offset adjusts for scaled Part so it sits on the surface
+	local yOffset = (scaledSize / 2) + 0.1
 	local offsetX = math.random(-5, 5)
 	local offsetZ = math.random(-5, 5)
 	part.Position = Vector3.new(
 		plotPosition.X + offsetX,
-		plotPosition.Y + 1.5,
+		plotPosition.Y + yOffset,
 		plotPosition.Z + offsetZ
 	)
 
-	-- BillboardGui for rarity, name, and earnings
+	-- BillboardGui for name (with size + rarity) and info (weight + earnings)
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 220, 0, 80)
+	billboard.Size = UDim2.new(0, 300, 0, 70)
 	billboard.StudsOffset = Vector3.new(0, 3, 0)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = part
 
-	-- Rarity label
-	local rarityLabel = Instance.new("TextLabel")
-	rarityLabel.Size = UDim2.new(1, 0, 0, 20)
-	rarityLabel.Position = UDim2.new(0, 0, 0, 0)
-	rarityLabel.Text = brainrot.rarity
-	rarityLabel.Font = Enum.Font.GothamBold
-	rarityLabel.TextScaled = true
-	rarityLabel.BackgroundTransparency = 1
-	rarityLabel.Parent = billboard
-
-	if brainrot.rarity == "Secret" then
-		rarityLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	else
-		rarityLabel.TextColor3 = rarityColor
-	end
-
-	-- Name label
+	-- Name label: "[SizeLabel] [Rarity] [Name]"
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0, 25)
-	nameLabel.Position = UDim2.new(0, 0, 0, 20)
-	nameLabel.Text = brainrot.name
+	nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	nameLabel.Position = UDim2.new(0, 0, 0, 0)
+	nameLabel.Text = brainrot.sizeLabel .. " " .. brainrot.rarity .. " " .. brainrot.name
 	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextScaled = true
 	nameLabel.BackgroundTransparency = 1
@@ -83,16 +73,16 @@ local function spawnBrainrotVisual(brainrot)
 		nameLabel.TextColor3 = rarityColor
 	end
 
-	-- Earnings label
-	local earningsLabel = Instance.new("TextLabel")
-	earningsLabel.Size = UDim2.new(1, 0, 0, 20)
-	earningsLabel.Position = UDim2.new(0, 0, 0, 45)
-	earningsLabel.Text = "+$" .. Utils.formatNumber(brainrot.earningsPerSec) .. "/sec"
-	earningsLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
-	earningsLabel.Font = Enum.Font.Gotham
-	earningsLabel.TextScaled = true
-	earningsLabel.BackgroundTransparency = 1
-	earningsLabel.Parent = billboard
+	-- Info label: "[Weight] lbs | +$[Earnings]/sec"
+	local infoLabel = Instance.new("TextLabel")
+	infoLabel.Size = UDim2.new(1, 0, 0.5, 0)
+	infoLabel.Position = UDim2.new(0, 0, 0.5, 0)
+	infoLabel.Text = tostring(brainrot.weight) .. " lbs | +$" .. Utils.formatNumber(brainrot.earningsPerSec) .. "/sec"
+	infoLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
+	infoLabel.Font = Enum.Font.Gotham
+	infoLabel.TextScaled = true
+	infoLabel.BackgroundTransparency = 1
+	infoLabel.Parent = billboard
 
 	part.Parent = workspace
 

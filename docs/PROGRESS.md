@@ -1,7 +1,7 @@
 # PROGRESS.md — Collect Brainrot's🦈
 
 **Last Updated:** 2026-02-22
-**Current Phase:** Phase 0 (Setup & Tooling) — DONE
+**Current Phase:** Phase 3 (Size System) — DONE
 
 ---
 
@@ -13,7 +13,7 @@
 | 0 | Setup & Tooling | DONE | All tools installed, project scaffold complete |
 | 1 | MVP Core Loop | DONE | All 14 files, playtested, core loop works |
 | 2 | Full Rarity & Food | DONE | All 8 tiers, balanced costs, rarity colors, scrolling store UI |
-| 3 | Size System | NOT STARTED | Random weighted sizes, weight in lbs |
+| 3 | Size System | DONE | 5 size tiers, weighted sizes, visual scaling, weight in lbs |
 | 4 | Base Mutations | NOT STARTED | Gold/Diamond/Rainbow from food |
 | 5 | Base Management | NOT STARTED | Capacity upgrades (1→30), sell store, fencing |
 | 6 | Weather System | NOT STARTED | 7 weather events, weather mutations, music |
@@ -98,13 +98,14 @@
 
 ## Phase 3: Size System
 
-- [ ] Create Config/Sizes.luau
-- [ ] Update FoodService.luau (roll size)
-- [ ] Update EarningsService.luau (size multiplier)
-- [ ] Update BaseUI.luau (visual scaling)
-- [ ] Update FoodStoreUI.luau (size in reveal)
-- [ ] Playtest: sizes vary, earnings scale
-- [ ] Git commit: "Phase 3: Size system"
+- [x] Create Config/Sizes.luau
+- [x] Update FoodService.luau (roll size)
+- [x] Update EarningsService.luau (size multiplier)
+- [x] Update BaseUI.luau (visual scaling)
+- [x] Update FoodStoreUI.luau (size in reveal)
+- [x] rojo build succeeds
+- [x] Playtest: sizes vary, earnings scale
+- [x] Git commit: "Phase 3: Size system"
 
 ---
 

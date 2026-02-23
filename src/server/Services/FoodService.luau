@@ -3,6 +3,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Brainrots = require(ReplicatedStorage.Shared.Config.Brainrots)
 local Foods = require(ReplicatedStorage.Shared.Config.Foods)
+local Sizes = require(ReplicatedStorage.Shared.Config.Sizes)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local BaseService = require(ServerScriptService.Server.Services.BaseService)
@@ -60,18 +61,27 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 	local rolledName = nameList[math.random(1, #nameList)]
 	local brainrotConfig = Brainrots.BRAINROT_BY_NAME[rolledName]
 
+	-- Roll size tier and get a random size value within that tier's range
+	local size, sizeLabel = Sizes.rollSize()
+
+	-- Compute weight based on brainrot's base weight scaled by size
+	local weight = Sizes.getWeight(brainrotConfig.name, size)
+
+	-- Size IS the earnings multiplier
+	local earningsPerSec = brainrotConfig.baseEarningsPerSec * size
+
 	-- Construct BrainrotInstance
 	local brainrotInstance = {
 		id = Utils.generateId(),
 		name = brainrotConfig.name,
 		rarity = brainrotConfig.rarity,
-		size = 1.0,
-		sizeLabel = "Medium",
-		weight = brainrotConfig.baseWeight,
+		size = size,
+		sizeLabel = sizeLabel,
+		weight = weight,
 		baseMutation = nil,
 		weatherMutation = nil,
 		personality = nil,
-		earningsPerSec = brainrotConfig.baseEarningsPerSec,
+		earningsPerSec = earningsPerSec,
 	}
 
 	-- Roll stay chance

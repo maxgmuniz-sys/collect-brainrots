@@ -237,7 +237,8 @@ function FoodStoreUI.Init()
 	end)
 
 	BrainrotSpawned.OnClientEvent:Connect(function(data)
-		feedbackLabel.Text = data.brainrotData.name .. " joined your base!"
+		local b = data.brainrotData
+		feedbackLabel.Text = "You got a " .. b.sizeLabel .. " " .. b.rarity .. " " .. b.name .. "! (" .. tostring(b.weight) .. " lbs)"
 		feedbackLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
 		feedbackLabel.TextTransparency = 0
 		task.delay(3, function()
