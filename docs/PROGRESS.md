@@ -1,7 +1,7 @@
 # PROGRESS.md — Collect Brainrot's🦈
 
 **Last Updated:** 2026-02-22
-**Current Phase:** Phase 3 (Size System) — DONE
+**Current Phase:** Phase 4 (Base Mutations) — DONE
 
 ---
 
@@ -14,7 +14,7 @@
 | 1 | MVP Core Loop | DONE | All 14 files, playtested, core loop works |
 | 2 | Full Rarity & Food | DONE | All 8 tiers, balanced costs, rarity colors, scrolling store UI |
 | 3 | Size System | DONE | 5 size tiers, weighted sizes, visual scaling, weight in lbs |
-| 4 | Base Mutations | NOT STARTED | Gold/Diamond/Rainbow from food |
+| 4 | Base Mutations | DONE | Gold/Diamond/Rainbow mutations, particles, rainbow cycling |
 | 5 | Base Management | NOT STARTED | Capacity upgrades (1→30), sell store, fencing |
 | 6 | Weather System | NOT STARTED | 7 weather events, weather mutations, music |
 | 7 | Index & Social | NOT STARTED | Codex, gifting, leaderboards |
@@ -111,13 +111,14 @@
 
 ## Phase 4: Base Mutations
 
-- [ ] Create Config/Mutations.luau
-- [ ] Update FoodService.luau (roll mutation)
-- [ ] Update EarningsService.luau (mutation multiplier)
-- [ ] Update BaseUI.luau (mutation visuals)
-- [ ] Update FoodStoreUI.luau (mutation in reveal)
-- [ ] Playtest: mutations appear, earnings chain correctly
-- [ ] Git commit: "Phase 4: Base mutations"
+- [x] Create Config/Mutations.luau
+- [x] Update FoodService.luau (roll mutation)
+- [x] Update EarningsService.luau (mutation multiplier)
+- [x] Update BaseUI.luau (mutation visuals)
+- [x] Update FoodStoreUI.luau (mutation in reveal)
+- [x] Fix Base Full flicker (guard with baseFullShowing flag)
+- [x] Playtest: mutations appear, earnings chain correctly
+- [x] Git commit: "Phase 4: Base mutations"
 
 ---
 

@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local Brainrots = require(ReplicatedStorage.Shared.Config.Brainrots)
+local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
 local DataService = require(ServerScriptService.Server.Services.DataService)
 local Remotes = require(ServerScriptService.Server.Remotes)
 
@@ -19,12 +20,14 @@ function EarningsService.recalculate(player: Player)
 
 	local total = 0
 	for _, brainrot in data.ownedBrainrots do
-		-- Recompute earnings from base data: baseEarnings * size
+		-- Recompute earnings: base * size * baseMutation * weatherMutation
 		local brainrotConfig = Brainrots.BRAINROT_BY_NAME[brainrot.name]
 		if brainrotConfig then
 			local baseEarnings = brainrotConfig.baseEarningsPerSec
-			local sizeMultiplier = brainrot.size
-			local computed = baseEarnings * sizeMultiplier
+			local sizeMult = brainrot.size
+			local baseMutMult = Mutations.getBaseMutationMultiplier(brainrot.baseMutation)
+			local weatherMutMult = Mutations.getWeatherMutationMultiplier(brainrot.weatherMutation)
+			local computed = baseEarnings * sizeMult * baseMutMult * weatherMutMult
 			brainrot.earningsPerSec = computed
 			total += computed
 		else

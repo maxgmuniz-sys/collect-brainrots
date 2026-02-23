@@ -2,12 +2,14 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Foods = require(ReplicatedStorage.Shared.Config.Foods)
+local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 
 local player = Players.LocalPlayer
 
 local currentMoney = 0
 local isBaseFull = false
+local baseFullShowing = false
 local buyButtons = {}
 
 local FoodStoreUI = {}
@@ -207,15 +209,18 @@ function FoodStoreUI.Init()
 			end
 		end
 
-		if isBaseFull then
+		if isBaseFull and not baseFullShowing then
+			baseFullShowing = true
 			baseFullLabel.Visible = true
 			baseFullLabel.TextTransparency = 0
 			baseFullLabel.BackgroundTransparency = 0.3
 			task.delay(3, function()
 				baseFullLabel.Visible = false
+				baseFullShowing = false
 			end)
-		else
+		elseif not isBaseFull then
 			baseFullLabel.Visible = false
+			baseFullShowing = false
 		end
 	end
 
@@ -238,9 +243,44 @@ function FoodStoreUI.Init()
 
 	BrainrotSpawned.OnClientEvent:Connect(function(data)
 		local b = data.brainrotData
-		feedbackLabel.Text = "You got a " .. b.sizeLabel .. " " .. b.rarity .. " " .. b.name .. "! (" .. tostring(b.weight) .. " lbs)"
-		feedbackLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
+
+		-- Build descriptor: "[MUTATION] [SizeLabel] [Rarity] [Name]"
+		local revealParts = {}
+		if b.baseMutation then
+			table.insert(revealParts, string.upper(b.baseMutation))
+		end
+		table.insert(revealParts, b.sizeLabel)
+		table.insert(revealParts, b.rarity)
+		table.insert(revealParts, b.name)
+		local descriptor = table.concat(revealParts, " ")
+
+		feedbackLabel.Text = "You got a " .. descriptor .. "!"
 		feedbackLabel.TextTransparency = 0
+
+		-- Color based on mutation
+		if b.baseMutation then
+			local mutColor = Mutations.getBaseMutationColor(b.baseMutation)
+			if mutColor then
+				feedbackLabel.TextColor3 = mutColor
+			elseif Mutations.isRainbow(b.baseMutation) then
+				feedbackLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+				task.spawn(function()
+					local rainbowColors = Mutations.RAINBOW_COLORS
+					local startTime = os.clock()
+					while os.clock() - startTime < 3 do
+						local t = ((os.clock() - startTime) * 3) % #rainbowColors
+						local idx = math.floor(t) % #rainbowColors + 1
+						local nextIdx = idx % #rainbowColors + 1
+						local alpha = t - math.floor(t)
+						feedbackLabel.TextColor3 = rainbowColors[idx]:Lerp(rainbowColors[nextIdx], alpha)
+						task.wait()
+					end
+				end)
+			end
+		else
+			feedbackLabel.TextColor3 = Color3.fromRGB(85, 255, 85)
+		end
+
 		task.delay(3, function()
 			feedbackLabel.TextTransparency = 1
 		end)

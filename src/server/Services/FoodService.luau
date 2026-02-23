@@ -3,6 +3,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local Brainrots = require(ReplicatedStorage.Shared.Config.Brainrots)
 local Foods = require(ReplicatedStorage.Shared.Config.Foods)
+local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
 local Sizes = require(ReplicatedStorage.Shared.Config.Sizes)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 local DataService = require(ServerScriptService.Server.Services.DataService)
@@ -67,8 +68,12 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 	-- Compute weight based on brainrot's base weight scaled by size
 	local weight = Sizes.getWeight(brainrotConfig.name, size)
 
-	-- Size IS the earnings multiplier
-	local earningsPerSec = brainrotConfig.baseEarningsPerSec * size
+	-- Roll base mutation
+	local baseMutation = Mutations.rollBaseMutation()
+	local baseMutationMult = Mutations.getBaseMutationMultiplier(baseMutation)
+
+	-- Earnings = base * size * mutation
+	local earningsPerSec = brainrotConfig.baseEarningsPerSec * size * baseMutationMult
 
 	-- Construct BrainrotInstance
 	local brainrotInstance = {
@@ -78,7 +83,7 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 		size = size,
 		sizeLabel = sizeLabel,
 		weight = weight,
-		baseMutation = nil,
+		baseMutation = baseMutation,
 		weatherMutation = nil,
 		personality = nil,
 		earningsPerSec = earningsPerSec,
