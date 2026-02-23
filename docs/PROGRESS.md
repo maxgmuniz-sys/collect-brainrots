@@ -11,7 +11,7 @@
 |-------|------|--------|-------|
 | Docs | Documentation Suite | DONE | All 13 docs written |
 | 0 | Setup & Tooling | DONE | All tools installed, project scaffold complete |
-| 1 | MVP Core Loop | NOT STARTED | Common food + common brainrots + money/sec |
+| 1 | MVP Core Loop | IN PROGRESS | All 14 files written, needs playtest |
 | 2 | Full Rarity & Food | NOT STARTED | All 25 brainrots, all 8 food tiers, balance costs |
 | 3 | Size System | NOT STARTED | Random weighted sizes, weight in lbs |
 | 4 | Base Mutations | NOT STARTED | Gold/Diamond/Rainbow from food |
@@ -59,26 +59,27 @@
 - [x] Verify rojo build
 - [x] Verify rojo serve (port 34872)
 - [ ] Verify Studio connection (user manual step)
-- [ ] Git commit: "Phase 0: Project setup and tooling"
+- [x] Git commit: "Phase 0: Project setup and tooling"
 
 ---
 
 ## Phase 1: MVP Core Loop
 
-- [ ] Config/Brainrots.luau
-- [ ] Config/Foods.luau
-- [ ] Types.luau
-- [ ] Utils.luau
-- [ ] Remotes/init.luau
-- [ ] DataService.luau
-- [ ] BaseService.luau
-- [ ] EarningsService.luau
-- [ ] FoodService.luau
-- [ ] MoneyUI.luau
-- [ ] FoodStoreUI.luau
-- [ ] BaseUI.luau
-- [ ] init.server.luau
-- [ ] init.client.luau
+- [x] Config/Brainrots.luau
+- [x] Config/Foods.luau
+- [x] Types.luau
+- [x] Utils.luau
+- [x] Remotes/init.luau
+- [x] DataService.luau (ProfileStore at ServerScriptService.ServerPackages)
+- [x] BaseService.luau
+- [x] EarningsService.luau
+- [x] FoodService.luau
+- [x] MoneyUI.luau
+- [x] FoodStoreUI.luau
+- [x] BaseUI.luau
+- [x] init.server.luau
+- [x] init.client.luau
+- [x] rojo build succeeds
 - [ ] Playtest: core loop works
 - [ ] Git commit: "Phase 1: MVP core loop"
 
