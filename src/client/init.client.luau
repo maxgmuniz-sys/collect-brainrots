@@ -19,4 +19,8 @@ IndexUI.Init()
 LeaderboardUI.Init()
 FusionUI.Init()
 
+-- Phase 9: Tutorial (must be last so all UIs exist for highlighting)
+local TutorialUI = require(script.Controllers.TutorialUI)
+TutorialUI.Init()
+
 print("[Client] All controllers initialized.")

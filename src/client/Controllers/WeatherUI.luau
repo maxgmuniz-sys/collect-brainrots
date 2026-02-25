@@ -7,6 +7,7 @@ local SoundService = game:GetService("SoundService")
 local ContentProvider = game:GetService("ContentProvider")
 
 local Weather = require(ReplicatedStorage.Shared.Config.Weather)
+local Sounds = require(ReplicatedStorage.Shared.Config.Sounds)
 
 local player = Players.LocalPlayer
 
@@ -25,6 +26,14 @@ local luckyHourCountdown = nil
 local luckyHourEndTime: number = 0
 local isLuckyHourActive = false
 
+-- Phase 9: Music system state
+local currentMusicSound: Sound? = nil
+local targetMusicVolume: number = 0.3
+local userVolumeMultiplier: number = 1.0
+local isCrossfading: boolean = false
+local currentMood: string = "Joyful"
+local ambientSound: Sound? = nil
+
 local WEATHER_COLORS = {
 	Clear = Color3.fromRGB(255, 255, 200),
 	Rain = Color3.fromRGB(100, 150, 255),
@@ -34,6 +43,17 @@ local WEATHER_COLORS = {
 	["Solar Flare"] = Color3.fromRGB(255, 100, 30),
 	Nuclear = Color3.fromRGB(100, 255, 50),
 	["Black Hole"] = Color3.fromRGB(180, 50, 255),
+}
+
+-- Phase 9: Ambient sound per weather type
+local AMBIENT_SOUNDS = {
+	Rain = "rbxassetid://0",
+	Snow = "rbxassetid://0",
+	Storm = "rbxassetid://0",
+	["Meteor Shower"] = "rbxassetid://0",
+	["Solar Flare"] = "rbxassetid://0",
+	Nuclear = "rbxassetid://0",
+	["Black Hole"] = "rbxassetid://0",
 }
 
 local WeatherUI = {}
@@ -70,11 +90,125 @@ local function playWeatherSound(id: number, volume: number, pitch: number, loope
 end
 
 -- ============================================================
+-- PHASE 9: MUSIC CROSSFADE SYSTEM
+-- ============================================================
+
+local function crossfadeToMood(newMood: string)
+	if newMood == currentMood and currentMusicSound and currentMusicSound.IsPlaying then
+		return
+	end
+
+	if isCrossfading then
+		return
+	end
+
+	currentMood = newMood
+	isCrossfading = true
+
+	local tracks = Sounds.MUSIC_TRACKS[newMood]
+	if not tracks or #tracks == 0 then
+		isCrossfading = false
+		return
+	end
+	local trackData = tracks[math.random(1, #tracks)]
+
+	-- Create new music Sound
+	local newMusic = Instance.new("Sound")
+	newMusic.SoundId = trackData.assetId
+	newMusic.Volume = 0
+	newMusic.Looped = true
+	newMusic.Parent = SoundService
+	newMusic:Play()
+
+	local fadeDuration = Sounds.MUSIC_CROSSFADE_DURATION
+
+	-- Fade out old track
+	if currentMusicSound and currentMusicSound.IsPlaying then
+		local oldMusic = currentMusicSound
+		local fadeOutTween = TweenService:Create(
+			oldMusic,
+			TweenInfo.new(fadeDuration, Enum.EasingStyle.Linear),
+			{ Volume = 0 }
+		)
+		fadeOutTween:Play()
+		fadeOutTween.Completed:Once(function()
+			oldMusic:Stop()
+			oldMusic:Destroy()
+		end)
+	end
+
+	-- Fade in new track
+	targetMusicVolume = trackData.volume * userVolumeMultiplier
+	local fadeInTween = TweenService:Create(
+		newMusic,
+		TweenInfo.new(fadeDuration, Enum.EasingStyle.Linear),
+		{ Volume = targetMusicVolume }
+	)
+	fadeInTween:Play()
+	fadeInTween.Completed:Once(function()
+		isCrossfading = false
+	end)
+
+	currentMusicSound = newMusic
+end
+
+-- ============================================================
+-- PHASE 9: AMBIENT SOUND SYSTEM
+-- ============================================================
+
+local function setAmbientSound(weatherType: string)
+	-- Fade out existing ambient
+	if ambientSound then
+		local oldAmbient = ambientSound
+		local fadeOut = TweenService:Create(
+			oldAmbient,
+			TweenInfo.new(1.0, Enum.EasingStyle.Linear),
+			{ Volume = 0 }
+		)
+		fadeOut:Play()
+		fadeOut.Completed:Once(function()
+			oldAmbient:Stop()
+			oldAmbient:Destroy()
+		end)
+		ambientSound = nil
+	end
+
+	-- Start new ambient if applicable
+	local ambientId = AMBIENT_SOUNDS[weatherType]
+	if not ambientId then
+		return
+	end
+
+	local newAmbient = Instance.new("Sound")
+	newAmbient.SoundId = ambientId
+	newAmbient.Volume = 0
+	newAmbient.Looped = true
+	newAmbient.Parent = SoundService
+	newAmbient:Play()
+
+	local fadeIn = TweenService:Create(
+		newAmbient,
+		TweenInfo.new(1.5, Enum.EasingStyle.Linear),
+		{ Volume = 0.25 * userVolumeMultiplier }
+	)
+	fadeIn:Play()
+
+	ambientSound = newAmbient
+end
+
+-- ============================================================
 -- CLEANUP
 -- ============================================================
 
 local function clearAllEffects()
 	stopWeatherSound()
+
+	-- Clean up ambient sound
+	if ambientSound then
+		ambientSound:Stop()
+		ambientSound:Destroy()
+		ambientSound = nil
+	end
 
 	for _, effect in activeEffects do
 		if effect and effect.Parent then
@@ -124,7 +258,7 @@ local function makeEmitterPart(size: Vector3, yOffset: number)
 end
 
 -- ============================================================
--- RAIN — Heavy downpour with angled wind rain + ground splashes
+-- RAIN
 -- ============================================================
 local function applyRainEffects()
 	Lighting.Ambient = Color3.fromRGB(55, 55, 75)
@@ -132,7 +266,6 @@ local function applyRainEffects()
 	Lighting.FogEnd = 180
 	Lighting.FogColor = Color3.fromRGB(90, 95, 110)
 
-	-- Blue tint color correction
 	local colorCorrection = Instance.new("ColorCorrectionEffect")
 	colorCorrection.Name = "WeatherEffect"
 	colorCorrection.TintColor = Color3.fromRGB(170, 190, 255)
@@ -140,9 +273,7 @@ local function applyRainEffects()
 	colorCorrection.Parent = Lighting
 	table.insert(activeEffects, colorCorrection)
 
-	-- Main rain — angled to simulate wind
 	local rainPart = makeEmitterPart(Vector3.new(200, 1, 200), 70)
-	-- Tilt the part so emission goes at an angle (wind from one side)
 	rainPart.CFrame = rainPart.CFrame * CFrame.Angles(0, 0, math.rad(15))
 
 	local rain = Instance.new("ParticleEmitter")
@@ -163,7 +294,6 @@ local function applyRainEffects()
 	rain.LightEmission = 0.05
 	rain.Parent = rainPart
 
-	-- Ground splash
 	local splashPart = makeEmitterPart(Vector3.new(200, 1, 200), 0.3)
 	local splash = Instance.new("ParticleEmitter")
 	splash.Rate = 400
@@ -186,7 +316,7 @@ local function applyRainEffects()
 end
 
 -- ============================================================
--- SNOW — Blizzard of big snowflakes (10x previous)
+-- SNOW
 -- ============================================================
 local function applySnowEffects()
 	Lighting.Ambient = Color3.fromRGB(75, 85, 120)
@@ -226,7 +356,7 @@ local function applySnowEffects()
 end
 
 -- ============================================================
--- STORM — Torrential sideways rain + lightning BOLT Parts + shake
+-- STORM
 -- ============================================================
 
 local function spawnLightningBolt()
@@ -256,8 +386,7 @@ local function spawnLightningBolt()
 		local startPos = Vector3.new(currentX, startY, currentZ)
 		local endPos = Vector3.new(nextX, endY, nextZ)
 		local midPoint = (startPos + endPos) / 2
-		local direction = endPos - startPos
-		local length = direction.Magnitude
+		local length = (endPos - startPos).Magnitude
 
 		local part = Instance.new("Part")
 		part.Name = "LightningBolt"
@@ -274,7 +403,6 @@ local function spawnLightningBolt()
 		currentZ = nextZ
 	end
 
-	-- Ground illumination at impact point
 	local impactPos = Vector3.new(currentX, 2, currentZ)
 	local lightPart = Instance.new("Part")
 	lightPart.Name = "LightningBolt"
@@ -292,13 +420,11 @@ local function spawnLightningBolt()
 	pointLight.Parent = lightPart
 	table.insert(boltParts, lightPart)
 
-	-- Subtle brightness bump during strike
 	local flash = Instance.new("ColorCorrectionEffect")
 	flash.Name = "WeatherEffect"
 	flash.Brightness = 0.5
 	flash.Parent = Lighting
 
-	-- Destroy everything after 0.15 seconds
 	task.delay(0.15, function()
 		for _, p in boltParts do
 			if p and p.Parent then
@@ -317,7 +443,6 @@ local function applyStormEffects()
 	Lighting.FogEnd = 120
 	Lighting.FogColor = Color3.fromRGB(30, 30, 50)
 
-	-- Persistent thunder sound — reused on every strike for instant playback
 	local thunderSound = Instance.new("Sound")
 	thunderSound.SoundId = "rbxassetid://9120019553"
 	thunderSound.Volume = 0.7
@@ -327,7 +452,6 @@ local function applyStormEffects()
 	ContentProvider:PreloadAsync({ thunderSound })
 	table.insert(activeEffects, thunderSound)
 
-	-- Torrential angled rain
 	local stormPart = makeEmitterPart(Vector3.new(200, 1, 200), 70)
 	stormPart.CFrame = stormPart.CFrame * CFrame.Angles(0, 0, math.rad(25))
 
@@ -348,7 +472,6 @@ local function applyStormEffects()
 	})
 	rain.Parent = stormPart
 
-	-- Ground splash
 	local splashPart = makeEmitterPart(Vector3.new(200, 1, 200), 0.3)
 	local splash = Instance.new("ParticleEmitter")
 	splash.Rate = 800
@@ -367,7 +490,6 @@ local function applyStormEffects()
 	})
 	splash.Parent = splashPart
 
-	-- Lightning bolts + reduced camera shake
 	task.spawn(function()
 		while currentWeather == "Storm" do
 			task.wait(1.5 + math.random() * 2.5)
@@ -375,7 +497,6 @@ local function applyStormEffects()
 				break
 			end
 
-			-- Play thunder 1s before bolt so sound lands on impact
 			thunderSound.PlaybackSpeed = 0.85 + math.random() * 0.3
 			thunderSound.TimePosition = 0
 			thunderSound:Play()
@@ -386,7 +507,6 @@ local function applyStormEffects()
 
 			spawnLightningBolt()
 
-			-- Reduced camera shake (6 iterations instead of 12)
 			local camera = workspace.CurrentCamera
 			if camera then
 				local originalCFrame = camera.CFrame
@@ -402,7 +522,7 @@ local function applyStormEffects()
 end
 
 -- ============================================================
--- METEOR SHOWER — Actual Part meteors falling + explosions
+-- METEOR SHOWER
 -- ============================================================
 
 local function spawnMeteor()
@@ -415,7 +535,6 @@ local function spawnMeteor()
 	local targetX = camPos.X + math.random(-120, 120)
 	local targetZ = camPos.Z + math.random(-120, 120)
 
-	-- Create meteor Part
 	local meteor = Instance.new("Part")
 	meteor.Name = "MeteorPart"
 	meteor.Anchored = true
@@ -427,7 +546,6 @@ local function spawnMeteor()
 	meteor.Position = Vector3.new(targetX + math.random(-30, 30), 100, targetZ + math.random(-30, 30))
 	meteor.Parent = workspace
 
-	-- Fire trail
 	local fire = Instance.new("Fire")
 	fire.Size = 5
 	fire.Heat = 10
@@ -435,7 +553,6 @@ local function spawnMeteor()
 	fire.SecondaryColor = Color3.fromRGB(255, 80, 0)
 	fire.Parent = meteor
 
-	-- Smoke trail
 	local smoke = Instance.new("Smoke")
 	smoke.Size = 3
 	smoke.Opacity = 0.5
@@ -443,7 +560,6 @@ local function spawnMeteor()
 	smoke.RiseVelocity = 2
 	smoke.Parent = meteor
 
-	-- Tween to ground
 	local fallTime = 1.0 + math.random() * 0.5
 	local groundPos = Vector3.new(targetX, 2, targetZ)
 	local tweenInfo = TweenInfo.new(fallTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -455,7 +571,6 @@ local function spawnMeteor()
 			return
 		end
 
-		-- Visual-only explosion
 		local explosion = Instance.new("Explosion")
 		explosion.Position = groundPos
 		explosion.BlastRadius = 10
@@ -463,7 +578,6 @@ local function spawnMeteor()
 		explosion.DestroyJointRadiusPercent = 0
 		explosion.Parent = workspace
 
-		-- Impact sound (one-shot per meteor)
 		local impactSound = Instance.new("Sound")
 		impactSound.SoundId = "rbxassetid://9125402528"
 		impactSound.Volume = 0.4
@@ -475,7 +589,6 @@ local function spawnMeteor()
 			impactSound:Destroy()
 		end)
 
-		-- Small camera shake on impact (4 iterations)
 		local cam = workspace.CurrentCamera
 		if cam and currentWeather == "Meteor Shower" then
 			task.spawn(function()
@@ -489,7 +602,6 @@ local function spawnMeteor()
 			end)
 		end
 
-		-- Destroy meteor after brief delay
 		task.delay(0.3, function()
 			if meteor and meteor.Parent then
 				meteor:Destroy()
@@ -504,7 +616,6 @@ local function applyMeteorShowerEffects()
 	Lighting.FogEnd = 500
 	Lighting.FogColor = Color3.fromRGB(160, 100, 50)
 
-	-- Preload meteor impact sound so it plays instantly on hit
 	local preload = Instance.new("Sound")
 	preload.SoundId = "rbxassetid://9125402528"
 	ContentProvider:PreloadAsync({ preload })
@@ -517,7 +628,6 @@ local function applyMeteorShowerEffects()
 	colorCorrection.Parent = Lighting
 	table.insert(activeEffects, colorCorrection)
 
-	-- Ground fire impacts (ambient)
 	local firePart = makeEmitterPart(Vector3.new(250, 1, 250), 0.5)
 	local fire = Instance.new("ParticleEmitter")
 	fire.Rate = 100
@@ -544,7 +654,6 @@ local function applyMeteorShowerEffects()
 	})
 	fire.Parent = firePart
 
-	-- Smoke from impacts (ambient)
 	local smokePart = makeEmitterPart(Vector3.new(250, 1, 250), 0.5)
 	local smoke = Instance.new("ParticleEmitter")
 	smoke.Rate = 60
@@ -566,7 +675,6 @@ local function applyMeteorShowerEffects()
 	})
 	smoke.Parent = smokePart
 
-	-- Spawn actual meteor Parts periodically
 	task.spawn(function()
 		while currentWeather == "Meteor Shower" do
 			task.wait(0.8 + math.random() * 1.2)
@@ -579,7 +687,7 @@ local function applyMeteorShowerEffects()
 end
 
 -- ============================================================
--- SOLAR FLARE — Blinding heat, intense shimmer, ground flames
+-- SOLAR FLARE
 -- ============================================================
 local function applySolarFlareEffects()
 	Lighting.Ambient = Color3.fromRGB(200, 140, 40)
@@ -595,14 +703,12 @@ local function applySolarFlareEffects()
 	colorCorrection.Parent = Lighting
 	table.insert(activeEffects, colorCorrection)
 
-	-- Heat shimmer blur
 	local blur = Instance.new("BlurEffect")
 	blur.Name = "WeatherEffect"
 	blur.Size = 0
 	blur.Parent = Lighting
 	table.insert(activeEffects, blur)
 
-	-- Heat wave particles rising from ground
 	local heatPart = makeEmitterPart(Vector3.new(200, 1, 200), 0.5)
 	local heat = Instance.new("ParticleEmitter")
 	heat.Rate = 150
@@ -626,7 +732,6 @@ local function applySolarFlareEffects()
 	heat.LightEmission = 0.9
 	heat.Parent = heatPart
 
-	-- Sun beams from above
 	local sunPart = makeEmitterPart(Vector3.new(100, 1, 100), 80)
 	local sun = Instance.new("ParticleEmitter")
 	sun.Rate = 20
@@ -646,7 +751,6 @@ local function applySolarFlareEffects()
 	sun.LightEmission = 1
 	sun.Parent = sunPart
 
-	-- Oscillating blur shimmer
 	task.spawn(function()
 		while currentWeather == "Solar Flare" do
 			local tweenIn = TweenService:Create(blur, TweenInfo.new(0.8, Enum.EasingStyle.Sine), { Size = 12 })
@@ -665,7 +769,7 @@ local function applySolarFlareEffects()
 end
 
 -- ============================================================
--- NUCLEAR — Eerie green fog, radiation, falling ash
+-- NUCLEAR
 -- ============================================================
 local function applyNuclearEffects()
 	Lighting.Ambient = Color3.fromRGB(30, 90, 15)
@@ -681,7 +785,6 @@ local function applyNuclearEffects()
 	colorCorrection.Parent = Lighting
 	table.insert(activeEffects, colorCorrection)
 
-	-- Thick radiation particles rising
 	local radPart = makeEmitterPart(Vector3.new(200, 1, 200), 0.5)
 	local rad = Instance.new("ParticleEmitter")
 	rad.Rate = 200
@@ -706,7 +809,6 @@ local function applyNuclearEffects()
 	rad.LightEmission = 0.9
 	rad.Parent = radPart
 
-	-- Falling ash/debris
 	local ashPart = makeEmitterPart(Vector3.new(200, 1, 200), 60)
 	local ash = Instance.new("ParticleEmitter")
 	ash.Rate = 150
@@ -726,7 +828,6 @@ local function applyNuclearEffects()
 	ash.RotSpeed = NumberRange.new(-80, 80)
 	ash.Parent = ashPart
 
-	-- Slight blur for haze
 	local blur = Instance.new("BlurEffect")
 	blur.Name = "WeatherEffect"
 	blur.Size = 4
@@ -737,7 +838,7 @@ local function applyNuclearEffects()
 end
 
 -- ============================================================
--- BLACK HOLE — Dark void, sphere + accretion disk, vortex, debris
+-- BLACK HOLE
 -- ============================================================
 local function applyBlackHoleEffects()
 	Lighting.Ambient = Color3.fromRGB(10, 3, 25)
@@ -754,14 +855,12 @@ local function applyBlackHoleEffects()
 	colorCorrection.Parent = Lighting
 	table.insert(activeEffects, colorCorrection)
 
-	-- Reduced distortion
 	local blur = Instance.new("BlurEffect")
 	blur.Name = "WeatherEffect"
 	blur.Size = 5
 	blur.Parent = Lighting
 	table.insert(activeEffects, blur)
 
-	-- ---- Actual black hole sphere ----
 	local camera = workspace.CurrentCamera
 	local camCF = camera.CFrame
 	local spherePos = camCF.Position + Vector3.new(0, 150, 0) + camCF.LookVector * 50
@@ -778,14 +877,12 @@ local function applyBlackHoleEffects()
 	sphere.Parent = workspace
 	table.insert(activeEffects, sphere)
 
-	-- Dim purple glow on sphere
 	local sphereLight = Instance.new("PointLight")
 	sphereLight.Color = Color3.fromRGB(120, 40, 200)
 	sphereLight.Range = 40
 	sphereLight.Brightness = 1
 	sphereLight.Parent = sphere
 
-	-- ---- Accretion disk (thin cylinder ring) ----
 	local disk = Instance.new("Part")
 	disk.Name = "AccretionDisk"
 	disk.Anchored = true
@@ -795,19 +892,16 @@ local function applyBlackHoleEffects()
 	disk.Material = Enum.Material.Neon
 	disk.Color = Color3.fromRGB(160, 50, 220)
 	disk.Position = spherePos
-	-- Orient cylinder horizontally (cylinder axis is X, so rotate to make it flat)
 	disk.CFrame = CFrame.new(spherePos) * CFrame.Angles(0, 0, math.rad(90))
 	disk.Parent = workspace
 	table.insert(activeEffects, disk)
 
-	-- Purple glow on accretion disk
 	local diskLight = Instance.new("PointLight")
 	diskLight.Color = Color3.fromRGB(160, 50, 220)
 	diskLight.Range = 60
 	diskLight.Brightness = 2
 	diskLight.Parent = disk
 
-	-- Slowly rotate the accretion disk
 	task.spawn(function()
 		while currentWeather == "Black Hole" and disk and disk.Parent do
 			disk.CFrame = disk.CFrame * CFrame.Angles(0, math.rad(1), 0)
@@ -815,7 +909,6 @@ local function applyBlackHoleEffects()
 		end
 	end)
 
-	-- Vortex particles overhead
 	local vortexPart = makeEmitterPart(Vector3.new(1, 1, 1), 50)
 	local vortex = Instance.new("ParticleEmitter")
 	vortex.Rate = 250
@@ -842,7 +935,6 @@ local function applyBlackHoleEffects()
 	vortex.RotSpeed = NumberRange.new(250, 500)
 	vortex.Parent = vortexPart
 
-	-- Debris pulled upward from ground
 	local debrisPart = makeEmitterPart(Vector3.new(250, 1, 250), 0.5)
 	local debris = Instance.new("ParticleEmitter")
 	debris.Rate = 100
@@ -866,7 +958,6 @@ local function applyBlackHoleEffects()
 	debris.RotSpeed = NumberRange.new(-200, 200)
 	debris.Parent = debrisPart
 
-	-- Camera pull toward vortex
 	task.spawn(function()
 		while currentWeather == "Black Hole" do
 			local cam = workspace.CurrentCamera
@@ -900,7 +991,7 @@ local function applyWeatherEffects(weatherType: string)
 end
 
 -- ============================================================
--- BANNER UI (below money/upgrade buttons)
+-- BANNER UI
 -- ============================================================
 
 local function createBannerUI()
@@ -978,6 +1069,122 @@ local function hideBanner()
 end
 
 -- ============================================================
+-- PHASE 9: VOLUME SLIDER UI
+-- ============================================================
+
+local function createVolumeSlider(screenGui)
+	local volumeFrame = Instance.new("Frame")
+	volumeFrame.Name = "VolumeControl"
+	volumeFrame.Position = UDim2.new(1, -10, 1, -50)
+	volumeFrame.AnchorPoint = Vector2.new(1, 1)
+	volumeFrame.Size = UDim2.new(0, 150, 0, 40)
+	volumeFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	volumeFrame.BackgroundTransparency = 0.5
+	volumeFrame.Parent = screenGui
+
+	local frameCorner = Instance.new("UICorner")
+	frameCorner.CornerRadius = UDim.new(0, 8)
+	frameCorner.Parent = volumeFrame
+
+	local volumeIcon = Instance.new("TextLabel")
+	volumeIcon.Position = UDim2.new(0, 5, 0.5, 0)
+	volumeIcon.AnchorPoint = Vector2.new(0, 0.5)
+	volumeIcon.Size = UDim2.new(0, 20, 0, 20)
+	volumeIcon.Text = "Vol"
+	volumeIcon.BackgroundTransparency = 1
+	volumeIcon.TextColor3 = Color3.fromRGB(200, 200, 200)
+	volumeIcon.TextScaled = true
+	volumeIcon.Font = Enum.Font.Gotham
+	volumeIcon.Parent = volumeFrame
+
+	local sliderTrack = Instance.new("Frame")
+	sliderTrack.Name = "SliderTrack"
+	sliderTrack.Position = UDim2.new(0, 30, 0.5, 0)
+	sliderTrack.AnchorPoint = Vector2.new(0, 0.5)
+	sliderTrack.Size = UDim2.new(0, 100, 0, 6)
+	sliderTrack.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	sliderTrack.Parent = volumeFrame
+
+	local trackCorner = Instance.new("UICorner")
+	trackCorner.CornerRadius = UDim.new(0, 3)
+	trackCorner.Parent = sliderTrack
+
+	local sliderFill = Instance.new("Frame")
+	sliderFill.Name = "SliderFill"
+	sliderFill.Size = UDim2.new(userVolumeMultiplier, 0, 1, 0)
+	sliderFill.BackgroundColor3 = Color3.fromRGB(85, 170, 255)
+	sliderFill.Parent = sliderTrack
+
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 3)
+	fillCorner.Parent = sliderFill
+
+	local sliderKnob = Instance.new("TextButton")
+	sliderKnob.Name = "SliderKnob"
+	sliderKnob.Size = UDim2.new(0, 16, 0, 16)
+	sliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+	sliderKnob.Position = UDim2.new(userVolumeMultiplier, 0, 0.5, 0)
+	sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	sliderKnob.Text = ""
+	sliderKnob.Parent = sliderTrack
+
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(1, 0)
+	knobCorner.Parent = sliderKnob
+
+	-- Drag behavior
+	local isDragging = false
+
+	sliderKnob.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDragging = true
+		end
+	end)
+
+	sliderKnob.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDragging = false
+		end
+	end)
+
+	sliderTrack.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDragging = true
+		end
+	end)
+
+	game:GetService("UserInputService").InputChanged:Connect(function(input)
+		if not isDragging then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			local trackAbsPos = sliderTrack.AbsolutePosition.X
+			local trackAbsSize = sliderTrack.AbsoluteSize.X
+			local mouseX = input.Position.X
+			local relativeX = math.clamp((mouseX - trackAbsPos) / trackAbsSize, 0, 1)
+
+			userVolumeMultiplier = relativeX
+			sliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
+			sliderKnob.Position = UDim2.new(relativeX, 0, 0.5, 0)
+
+			-- Update music volume in real-time
+			if currentMusicSound and currentMusicSound.Parent then
+				currentMusicSound.Volume = targetMusicVolume * userVolumeMultiplier
+			end
+			if ambientSound and ambientSound.Parent then
+				ambientSound.Volume = 0.25 * userVolumeMultiplier
+			end
+		end
+	end)
+
+	game:GetService("UserInputService").InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			isDragging = false
+		end
+	end)
+end
+
+-- ============================================================
 -- HANDLERS
 -- ============================================================
 
@@ -992,6 +1199,14 @@ local function onWeatherChanged(data)
 		showBanner(data.weather)
 		applyWeatherEffects(data.weather)
 	end
+
+	-- Phase 9: Crossfade music to matching mood
+	local severity = Weather.getSeverity(data.weather)
+	local mood = Weather.getSeverityLabel(severity)
+	crossfadeToMood(mood)
+
+	-- Phase 9: Update ambient sound
+	setAmbientSound(data.weather)
 end
 
 local function updateCountdown()
@@ -1135,6 +1350,15 @@ function WeatherUI.Init()
 		updateCountdown()
 		updateLuckyHourCountdown()
 	end)
+
+	-- Phase 9: Create volume slider
+	local weatherScreenGui = player.PlayerGui:FindFirstChild("WeatherUI")
+	if weatherScreenGui then
+		createVolumeSlider(weatherScreenGui)
+	end
+
+	-- Phase 9: Start with Joyful music
+	crossfadeToMood("Joyful")
 end
 
 return WeatherUI

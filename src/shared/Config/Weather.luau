@@ -73,9 +73,8 @@ local WEATHER_EVENTS = {
 	},
 }
 
--- TODO: Restore to 120/300 after testing
-local WEATHER_CYCLE_MIN = 10
-local WEATHER_CYCLE_MAX = 30
+local WEATHER_CYCLE_MIN = 120
+local WEATHER_CYCLE_MAX = 300
 
 local SEVERITY_LABELS = {
 	[0] = "Joyful",

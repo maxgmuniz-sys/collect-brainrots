@@ -37,6 +37,11 @@ local REMOTE_NAMES = {
 	"LuckyHourStarted",
 	"LuckyHourEnded",
 	"TutorialComplete",
+
+	-- Phase 9 remotes
+	"PlotAssigned",
+	"RivalBaseUpdate",
+	"TutorialStepCompleted",
 }
 
 local Remotes = {}

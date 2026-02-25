@@ -1,8 +1,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 
 local Foods = require(ReplicatedStorage.Shared.Config.Foods)
 local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
+local Sounds = require(ReplicatedStorage.Shared.Config.Sounds)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 
 local player = Players.LocalPlayer
@@ -14,6 +16,24 @@ local buyButtons = {}
 local luckyHourIndicator = nil
 
 local FoodStoreUI = {}
+
+-- Phase 9: Sound helper
+local function playSound(soundKey: string)
+	local soundData = Sounds.SOUND_EFFECTS[soundKey]
+	if not soundData then
+		return
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundData.assetId
+	sound.Volume = soundData.volume
+	sound.PlaybackSpeed = soundData.playbackSpeed or 1.0
+	sound.Parent = SoundService
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	sound:Play()
+end
 
 function FoodStoreUI.Init()
 	local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
@@ -168,6 +188,7 @@ function FoodStoreUI.Init()
 
 		buyButton.Activated:Connect(function()
 			BuyFood:FireServer({ foodTier = food.name })
+			playSound("BuyFood")
 		end)
 	end
 
@@ -261,6 +282,16 @@ function FoodStoreUI.Init()
 	BrainrotSpawned.OnClientEvent:Connect(function(data)
 		local b = data.brainrotData
 
+		-- Phase 9: Sound effects
+		playSound("BrainrotSpawned")
+		if b.baseMutation == "Gold" then
+			playSound("MutationGold")
+		elseif b.baseMutation == "Diamond" then
+			playSound("MutationDiamond")
+		elseif b.baseMutation == "Rainbow" then
+			playSound("MutationRainbow")
+		end
+
 		-- Build descriptor: "[MUTATION] [Personality] [SizeLabel] [Rarity] [Name]"
 		local revealParts = {}
 		if b.baseMutation then
@@ -307,6 +338,7 @@ function FoodStoreUI.Init()
 	end)
 
 	BrainrotRanAway.OnClientEvent:Connect(function(data)
+		playSound("BrainrotRanAway")
 		feedbackLabel.Text = data.brainrotName .. " ran away!"
 		feedbackLabel.TextColor3 = Color3.fromRGB(255, 85, 85)
 		feedbackLabel.TextTransparency = 0

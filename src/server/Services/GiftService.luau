@@ -120,6 +120,10 @@ local function handleGiftBrainrot(player: Player, data: { [string]: any })
 		baseMutation = brainrot.baseMutation,
 	})
 
+	-- Phase 9: broadcast rival update for both players
+	BaseService.broadcastRivalUpdate(player)
+	BaseService.broadcastRivalUpdate(targetPlayer)
+
 	print("[GiftService] " .. player.Name .. " gifted " .. brainrot.name .. " to " .. targetPlayer.Name)
 end
 

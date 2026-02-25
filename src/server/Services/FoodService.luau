@@ -106,8 +106,13 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 		earningsPerSec = earningsPerSec,
 	}
 
-	-- Roll stay chance
-	if math.random() <= food.stayChance then
+	-- Roll stay chance (tutorial override: 90% for new players)
+	local stayChance = food.stayChance
+	if playerData.tutorialComplete == false then
+		stayChance = math.max(stayChance, 0.90)
+	end
+
+	if math.random() <= stayChance then
 		-- Brainrot stays
 		table.insert(playerData.ownedBrainrots, brainrotInstance)
 		EarningsService.recalculate(player)
@@ -118,6 +123,9 @@ local function handleBuyFood(player: Player, data: { [string]: any })
 
 		-- Register discovery in the codex (Phase 7)
 		IndexService.registerDiscovery(player, brainrotInstance.name, brainrotInstance.baseMutation)
+
+		-- Phase 9: broadcast rival update
+		BaseService.broadcastRivalUpdate(player)
 	else
 		-- Brainrot ran away
 		Remotes.BrainrotRanAway:FireClient(player, {
@@ -244,6 +252,9 @@ local function handleFuseBrainrots(player: Player, data: { [string]: any })
 	-- Update capacity (net -2: removed 3, added 1)
 	local current, max = BaseService.getCapacity(player)
 	Remotes.CapacityUpdated:FireClient(player, { current = current, max = max })
+
+	-- Phase 9: broadcast rival update after fusion
+	BaseService.broadcastRivalUpdate(player)
 
 	print(
 		"[FoodService] "

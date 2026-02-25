@@ -80,7 +80,7 @@ local function applyWeatherMutations(weatherType: string)
 end
 
 -- TODO: Set TEST_MODE = false for production. When true, cycles through all weather types sequentially.
-local TEST_MODE = true
+local TEST_MODE = false
 local TEST_DURATION = 15
 
 local function weatherCycleTest()

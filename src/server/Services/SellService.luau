@@ -64,6 +64,9 @@ local function handleSellBrainrot(player: Player, data: { [string]: any })
 	local current, max = BaseService.getCapacity(player)
 	Remotes.CapacityUpdated:FireClient(player, { current = current, max = max })
 	Remotes.SellConfirmed:FireClient(player, { soldCount = 1, totalValue = sellValue, soldIds = { brainrotId } })
+
+	-- Phase 9: broadcast rival update
+	BaseService.broadcastRivalUpdate(player)
 end
 
 local function handleSellAll(player: Player)
@@ -93,6 +96,9 @@ local function handleSellAll(player: Player)
 
 	Remotes.CapacityUpdated:FireClient(player, { current = 0, max = playerData.baseCapacity })
 	Remotes.SellConfirmed:FireClient(player, { soldCount = soldCount, totalValue = totalValue, soldIds = soldIds })
+
+	-- Phase 9: broadcast rival update
+	BaseService.broadcastRivalUpdate(player)
 end
 
 function SellService.init()

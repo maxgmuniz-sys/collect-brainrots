@@ -29,10 +29,6 @@ local sessionStartTimes = {}
 
 local DataService = {}
 
-function DataService.init()
-	profileStore = ProfileStore.New(PROFILE_STORE_NAME, DEFAULT_DATA)
-end
-
 function DataService.onPlayerAdded(player: Player)
 	local profile = profileStore:StartSessionAsync("Player_" .. player.UserId)
 
@@ -72,6 +68,7 @@ function DataService.onPlayerAdded(player: Player)
 		},
 		brainrots = profile.Data.ownedBrainrots,
 		unlockedFences = profile.Data.unlockedFences,
+		tutorialComplete = profile.Data.tutorialComplete,
 	})
 end
 
@@ -127,6 +124,18 @@ end
 
 function DataService.getSessionStartTime(player: Player): number?
 	return sessionStartTimes[player]
+end
+
+function DataService.init()
+	profileStore = ProfileStore.New(PROFILE_STORE_NAME, DEFAULT_DATA)
+
+	-- Phase 9: TutorialComplete handler
+	Remotes.TutorialComplete.OnServerEvent:Connect(function(player: Player)
+		local data = DataService.getData(player)
+		if data then
+			data.tutorialComplete = true
+		end
+	end)
 end
 
 return DataService

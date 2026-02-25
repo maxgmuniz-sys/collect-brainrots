@@ -1,10 +1,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
 local Mutations = require(ReplicatedStorage.Shared.Config.Mutations)
 local Personalities = require(ReplicatedStorage.Shared.Config.Personalities)
+local Sounds = require(ReplicatedStorage.Shared.Config.Sounds)
 local Utils = require(ReplicatedStorage.Shared.Utils)
 
 local player = Players.LocalPlayer
@@ -41,6 +43,13 @@ local upgradeButton = nil
 local currentBestFence = nil
 local playerSelectionFrame = nil
 local activeGiftBrainrotId = nil
+
+-- Phase 9: Multiplayer / rival bases
+local rivalBases = {}
+local plotPlatforms = {}
+local myPlotIndex = nil
+local pendingInitialData = nil
+local allPlotPositions = nil
 
 local FENCE_COSMETICS = {
 	["Default Fence"] = {
@@ -184,6 +193,24 @@ local WEATHER_MUTATION_COLORS = {
 }
 
 local BaseUI = {}
+
+-- Phase 9: Sound helper
+local function playSound(soundKey: string)
+	local soundData = Sounds.SOUND_EFFECTS[soundKey]
+	if not soundData then
+		return
+	end
+
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundData.assetId
+	sound.Volume = soundData.volume
+	sound.PlaybackSpeed = soundData.playbackSpeed or 1.0
+	sound.Parent = SoundService
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	sound:Play()
+end
 
 local function addWeatherMutationEffect(part, mutation: string)
 	local existingEmitter = part:FindFirstChild("WeatherMutationEffect")
@@ -784,6 +811,197 @@ local function showGiftNotification(fromPlayer: string, brainrotName: string, ra
 	end)
 end
 
+-- Phase 9: Create all 6 plot platforms
+local function createPlotPlatforms(positions)
+	for i, pos in positions do
+		local platform = Instance.new("Part")
+		platform.Name = "PlotPlatform_" .. i
+		platform.Anchored = true
+		platform.CanCollide = true
+		platform.Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE)
+		platform.Position = pos - Vector3.new(0, 0.5, 0)
+		platform.Color = Color3.fromRGB(76, 153, 76)
+		platform.Material = Enum.Material.Grass
+		platform.TopSurface = Enum.SurfaceType.Smooth
+		platform.BottomSurface = Enum.SurfaceType.Smooth
+		platform.Parent = workspace
+
+		plotPlatforms[i] = platform
+
+		-- Name plate above each plot
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "PlotLabel"
+		billboard.Size = UDim2.new(0, 200, 0, 50)
+		billboard.StudsOffset = Vector3.new(0, 8, 0)
+		billboard.Adornee = platform
+		billboard.AlwaysOnTop = false
+		billboard.Parent = platform
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Name = "NameLabel"
+		nameLabel.Size = UDim2.new(1, 0, 1, 0)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+		nameLabel.TextScaled = true
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.Text = "Available"
+		nameLabel.Parent = billboard
+	end
+end
+
+-- Phase 9: Update a plot's name plate
+local function updatePlotLabel(plotIndex: number, text: string, color: Color3)
+	local platform = plotPlatforms[plotIndex]
+	if not platform then
+		return
+	end
+
+	local billboard = platform:FindFirstChild("PlotLabel")
+	if not billboard then
+		return
+	end
+
+	local label = billboard:FindFirstChild("NameLabel")
+	if label then
+		label.Text = text
+		label.TextColor3 = color
+	end
+end
+
+-- Phase 9: Create a view-only rival brainrot model
+local function createRivalBrainrotModel(summary, plotCenter: Vector3, index: number)
+	local part = Instance.new("Part")
+	part.Name = "RivalBrainrot_" .. index
+	part.Anchored = true
+	part.CanCollide = false
+
+	local basePartSize = 3
+	local scaledSize = basePartSize * summary.size
+	part.Size = Vector3.new(scaledSize, scaledSize, scaledSize)
+
+	-- Color: mutation > default gray
+	local mutationColor = Mutations.getBaseMutationColor(summary.baseMutation)
+	if mutationColor then
+		part.Color = mutationColor
+	else
+		part.Color = Color3.fromRGB(170, 170, 170)
+	end
+
+	local yOffset = scaledSize / 2
+	local offsetX = ((index - 1) % 5 - 2) * 4
+	local offsetZ = (math.floor((index - 1) / 5) - 1) * 4
+	part.Position = Vector3.new(plotCenter.X + offsetX, plotCenter.Y + yOffset, plotCenter.Z + offsetZ)
+
+	-- Billboard with name
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.new(0, 200, 0, 40)
+	billboard.StudsOffset = Vector3.new(0, 2, 0)
+	billboard.AlwaysOnTop = false
+	billboard.Parent = part
+
+	local labelTextParts = {}
+	if summary.baseMutation then
+		table.insert(labelTextParts, summary.baseMutation)
+	end
+	table.insert(labelTextParts, summary.sizeLabel)
+	table.insert(labelTextParts, summary.name)
+	local labelText = table.concat(labelTextParts, " ")
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = labelText
+	nameLabel.TextColor3 = mutationColor or Color3.fromRGB(200, 200, 200)
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.Parent = billboard
+
+	-- Personality label
+	if summary.personality then
+		local personalityColor = Personalities.getColor(summary.personality) or Color3.fromRGB(200, 200, 200)
+		local personalityLabel = Instance.new("TextLabel")
+		personalityLabel.Size = UDim2.new(1, 0, 0.4, 0)
+		personalityLabel.Position = UDim2.new(0, 0, 0.6, 0)
+		personalityLabel.BackgroundTransparency = 1
+		personalityLabel.Text = summary.personality
+		personalityLabel.TextColor3 = personalityColor
+		personalityLabel.TextScaled = true
+		personalityLabel.Font = Enum.Font.Gotham
+		personalityLabel.Parent = billboard
+	end
+
+	-- NO ClickDetector, NO gift button — view-only
+
+	part.Parent = workspace
+	return part
+end
+
+-- Phase 9: Handle rival base update
+local function handleRivalBaseUpdate(data)
+	local plotIndex = data.plotIndex
+	local playerName = data.playerName
+	local brainrots = data.brainrots
+
+	-- Ignore our own plot
+	if plotIndex == myPlotIndex then
+		return
+	end
+
+	-- Clear existing rival brainrot models for this plot
+	if rivalBases[plotIndex] then
+		for _, model in rivalBases[plotIndex].brainrotModels do
+			if model and model.Parent then
+				model:Destroy()
+			end
+		end
+	end
+
+	-- If brainrots list is empty (player left), clear and reset label
+	if #brainrots == 0 then
+		rivalBases[plotIndex] = nil
+		updatePlotLabel(plotIndex, "Available", Color3.fromRGB(200, 200, 200))
+		return
+	end
+
+	-- Create new rival brainrot models
+	local models = {}
+	local plotPos = allPlotPositions and allPlotPositions[plotIndex] or Vector3.new(0, 0, 0)
+	for i, brainrotSummary in brainrots do
+		local model = createRivalBrainrotModel(brainrotSummary, plotPos, i)
+		table.insert(models, model)
+	end
+
+	rivalBases[plotIndex] = {
+		playerName = playerName,
+		brainrotModels = models,
+	}
+
+	-- Update label
+	if playerName then
+		updatePlotLabel(plotIndex, playerName .. "'s Base", Color3.fromRGB(255, 200, 100))
+	end
+end
+
+-- Phase 9: Process initial data (spawn brainrots, create fence, etc.)
+local function processInitialData(data)
+	capacityLabel.Text = data.capacity.current .. "/" .. data.capacity.max .. " Brainrots"
+	updateUpgradeButton(data.capacity.max)
+
+	createFence(plotPosition)
+
+	for _, brainrot in data.brainrots do
+		spawnBrainrotVisual(brainrot)
+	end
+
+	-- Apply best fence cosmetic (Phase 7)
+	if data.unlockedFences and #data.unlockedFences > 0 then
+		local bestFence = getBestFenceFromList(data.unlockedFences)
+		if bestFence then
+			applyFenceCosmetic(bestFence)
+		end
+	end
+end
+
 function BaseUI.Init()
 	local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 	local BrainrotSpawned = remotesFolder:WaitForChild("BrainrotSpawned")
@@ -797,6 +1015,10 @@ function BaseUI.Init()
 	local GiftBrainrot = remotesFolder:WaitForChild("GiftBrainrot")
 	local GiftReceived = remotesFolder:WaitForChild("GiftReceived")
 	local IndexUpdated = remotesFolder:WaitForChild("IndexUpdated")
+
+	-- Phase 9 remotes
+	local PlotAssigned = remotesFolder:WaitForChild("PlotAssigned")
+	local RivalBaseUpdate = remotesFolder:WaitForChild("RivalBaseUpdate")
 
 	-- Store remote reference for spawnBrainrotVisual gift buttons
 	giftBrainrotRemote = GiftBrainrot
@@ -841,33 +1063,60 @@ function BaseUI.Init()
 	end)
 
 	-- Connect remotes
+
+	-- Phase 9: InitialData handler — wait for PlotAssigned before spawning
 	InitialData.OnClientEvent:Connect(function(data)
-		capacityLabel.Text = data.capacity.current .. "/" .. data.capacity.max .. " Brainrots"
-		updateUpgradeButton(data.capacity.max)
-		plotPosition = Vector3.new(0, 0, 0)
-
-		createFence(plotPosition)
-
-		for _, brainrot in data.brainrots do
-			spawnBrainrotVisual(brainrot)
+		if plotPosition then
+			-- PlotAssigned already received, process immediately
+			processInitialData(data)
+		else
+			-- Store for later processing when PlotAssigned arrives
+			pendingInitialData = data
 		end
+	end)
 
-		-- Apply best fence cosmetic (Phase 7)
-		if data.unlockedFences and #data.unlockedFences > 0 then
-			local bestFence = getBestFenceFromList(data.unlockedFences)
-			if bestFence then
-				applyFenceCosmetic(bestFence)
+	-- Phase 9: PlotAssigned handler
+	PlotAssigned.OnClientEvent:Connect(function(data)
+		if data.allPositions then
+			-- This is OUR plot assignment (contains allPositions)
+			myPlotIndex = data.plotIndex
+			allPlotPositions = data.allPositions
+			plotPosition = data.plotPosition
+
+			-- Create all 6 plot platforms
+			createPlotPlatforms(data.allPositions)
+
+			-- Update our own label
+			updatePlotLabel(data.plotIndex, "Your Base", Color3.fromRGB(85, 255, 85))
+
+			-- Create fence around our plot
+			createFence(plotPosition)
+
+			-- If InitialData arrived before PlotAssigned, process it now
+			if pendingInitialData then
+				processInitialData(pendingInitialData)
+				pendingInitialData = nil
+			end
+		else
+			-- Another player's plot assignment — just update the label
+			if data.playerName then
+				updatePlotLabel(data.plotIndex, data.playerName .. "'s Base", Color3.fromRGB(255, 200, 100))
 			end
 		end
 	end)
 
+	-- Phase 9: RivalBaseUpdate handler
+	RivalBaseUpdate.OnClientEvent:Connect(handleRivalBaseUpdate)
+
 	BrainrotSpawned.OnClientEvent:Connect(function(data)
 		spawnBrainrotVisual(data.brainrotData)
+		playSound("BrainrotSpawned")
 	end)
 
 	CapacityUpdated.OnClientEvent:Connect(function(data)
 		capacityLabel.Text = data.current .. "/" .. data.max .. " Brainrots"
 		updateUpgradeButton(data.max)
+		playSound("CapacityUpgraded")
 	end)
 
 	SellConfirmed.OnClientEvent:Connect(function(data)
@@ -876,6 +1125,7 @@ function BaseUI.Init()
 				removeBrainrotVisual(id)
 			end
 		end
+		playSound("SellBrainrot")
 	end)
 
 	BrainrotMutated.OnClientEvent:Connect(function(data)
@@ -885,6 +1135,7 @@ function BaseUI.Init()
 		end
 		addWeatherMutationEffect(part, data.weatherMutation)
 		updateBillboardWithWeatherMutation(data.brainrotId, data.weatherMutation)
+		playSound("WeatherMutationApplied")
 	end)
 
 	-- Phase 7: Gift received notification
